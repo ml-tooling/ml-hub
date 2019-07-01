@@ -53,7 +53,7 @@ c.DockerSpawner.extra_host_config = { 'network_mode': network_name, 'shm_size': 
 #c.DockerSpawner.notebook_dir = notebook_dir
 # Mount the real user's Docker volume on the host to the notebook user's
 # notebook directory in the container
-c.DockerSpawner.volumes = { 'jupyterhub-user-{username}': notebook_dir }
+# c.DockerSpawner.volumes = { 'jupyterhub-user-{username}': notebook_dir }
 
 ENV_SERVICE_SSL_ENABLED = os.getenv('SERVICE_SSL_ENABLED', False)
 if ENV_SERVICE_SSL_ENABLED is True or ENV_SERVICE_SSL_ENABLED == 'true':
@@ -85,12 +85,15 @@ c.DockerSpawner.name_template = '{prefix}-{username}{servername}'
 
 
 # c.JupyterHub.spawner_class = 'dockerspawner.DockerSpawner'
-c.JupyterHub.spawner_class = 'imagespawner.DockerImageChooserSpawner'
+# c.JupyterHub.spawner_class = 'imagespawner.DockerImageChooserSpawner'
+
 # The admin must pull these before they can be used.
 c.DockerImageChooserSpawner.dockerimages = [
 	'mltooling/ml-workspace',
 	'docker.wdf.sap.corp:51150/com.sap.sapai.studio/studio-workspace'
 ]
+
+c.JupyterHub.spawner_class = 'mlhubspawner.MLHubDockerSpawner'
 
 c.DockerSpawner.http_timeout = 60
 

@@ -33,9 +33,6 @@ RUN \
     make install && \
     apt-get clean
 
-RUN \
-    mkdir /var/log/nginx && \
-    mkdir /etc/nginx/nginx_plugins
 
 RUN \
     pip install dockerspawner && \
@@ -44,6 +41,14 @@ RUN \
 
 COPY docker-res/nginx.conf /etc/nginx/nginx.conf
 COPY docker-res/lua-resty-http/ "/etc/nginx/nginx_plugins/lua-resty-http"
+COPY docker-res/mlhubspawner /mlhubspawner
+
+RUN \
+    mkdir /var/log/nginx
+
+RUN \
+   pip install /mlhubspawner && \
+   rm -r /mlhubspawner
 
 ENV \
     PATH=/usr/local/openresty/nginx/sbin:$PATH
