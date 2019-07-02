@@ -12,15 +12,12 @@ class MLHubDockerSpawner(DockerSpawner):
         """Return the spawner options screen"""
 
         # Only show spawner options for named servers (the default server should start with default values)
-        server_name = getattr(self, "name", "")
-        if server_name == "":
+        if getattr(self, "name", "") == "":
             return ''
 
         description_memory_limit = 'Minimum limit must be 4mb as required by Docker.'
         description_env = 'In the form env=value (one per line)'
-        description_mount_volume = 'Mount a named volume to /workspace'
         description_gpus = 'Empty for no GPU-acess. A comma-separted list of numbers describe the indices of the accessible GPUs.'
-        default_named_volume = 'jupyterhub-user-{username}' + server_name
 
         label_style = "width: 25%"
         input_style = "width: 75%"
@@ -44,10 +41,7 @@ class MLHubDockerSpawner(DockerSpawner):
                 <textarea style="{input_style}" name="env" title="{description_env}" placeholder="FOO=BAR&#10;FOO2=BAR2"></textarea>
             </div>
             <div style="{div_style}">
-                <label style="{label_style}" for="mount_volume" title="{description_mount_volume}">Mount a named volume</label>
-                <input style="{input_style}; margin-bottom: 8px" name="mount_volume" title="{description_mount_volume}" value="{default_named_volume}"></input> 
-                <br />
-                <input type="checkbox" name="is_mount_volume">Mount the volume?</input>
+                <input type="checkbox" name="is_mount_volume" checked>Mount named volume to /workspace?</input>
             </div>
             <div style="{div_style}">
                 <label style="{label_style}" for="gpus" title="{description_gpus}">GPUs</label>
@@ -59,8 +53,6 @@ class MLHubDockerSpawner(DockerSpawner):
             input_style=input_style,
             description_memory_limit=description_memory_limit,
             description_env=description_env,
-            description_mount_volume=description_mount_volume,
-            default_named_volume=default_named_volume,
             description_gpus=description_gpus
         )
 
@@ -123,7 +115,9 @@ class MLHubDockerSpawner(DockerSpawner):
                 'mem_limit')
         
         if self.user_options.get('is_mount_volume') == 'on':
-            self.volumes = { self.user_options.get('mount_volume'): "/workspace" }
+            server_name = getattr(self, "name", "")
+            default_named_volume = 'jupyterhub-user-{username}' + server_name
+            self.volumes = { default_named_volume: "/workspace" }
 
         if self.user_options.get('gpus'):
             extra_host_config['runtime'] = "nvidia"
