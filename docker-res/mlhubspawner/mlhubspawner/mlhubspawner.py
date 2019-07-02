@@ -12,33 +12,55 @@ class MLHubDockerSpawner(DockerSpawner):
         """Return the spawner options screen"""
 
         # Only show spawner options for named servers (the default server should start with default values)
-        if getattr(self, "name", "") == "":
+        server_name = getattr(self, "name", "")
+        if server_name == "":
             return ''
 
         description_memory_limit = 'Minimum limit must be 4mb as required by Docker.'
         description_env = 'In the form env=value (one per line)'
+        description_mount_volume = 'Mount a named volume to /workspace'
         description_gpus = 'Empty for no GPU-acess. A comma-separted list of numbers describe the indices of the accessible GPUs.'
+        default_named_volume = 'jupyterhub-user-{username}' + server_name
+
+        label_style = "width: 25%"
+        input_style = "width: 75%"
+        div_style = "margin-bottom: 16px"
         # template = super()._default_options_form()
         return """
-            <label for="image">Docker Image</label>
-            <input name="image" placeholder="e.g. mltooling/ml-workspace"></input>
-            <br />
-            <label for="cpu_limit">Number of CPUs</label>
-            <input name="cpu_limit" placeholder="e.g. 8"></input>
-            <br />
-            <label for="mem_limit" title="{description_memory_limit}">Memory Limit</label>
-            <input name="mem_limit" title="{description_memory_limit}" placeholder="e.g. 100mb, 8g, ..."></input>
-            <br />
-            <label for="env" title="{description_env}">Environment Variables</label>
-            <textarea name="env" title="{description_env}"></textarea>
-            <br />
-            <input type="checkbox" name="mount_volume" title="Mount a named volume to /workspace">Mount a volume</input> 
-            <br />
-            <label for="gpus" title="{description_gpus}">GPUs</label>
-            <input name="gpus" title="{description_gpus}" placeholder="e.g. all, 0, 1, 2, ..."></input>
+            <div style="{div_style}">
+                <label style="{label_style}" for="image">Docker Image</label>
+                <input style="{input_style}" name="image" placeholder="e.g. mltooling/ml-workspace"></input>
+            </div>
+            <div style="{div_style}">
+                <label style="{label_style}" for="cpu_limit">Number of CPUs</label>
+                <input style="{input_style}" name="cpu_limit" placeholder="e.g. 8"></input>
+            </div>
+            <div style="{div_style}">
+                <label style="{label_style}" for="mem_limit" title="{description_memory_limit}">Memory Limit</label>
+                <input style="{input_style}" name="mem_limit" title="{description_memory_limit}" placeholder="e.g. 100mb, 8g, ..."></input>
+            </div>
+            <div style="{div_style}">
+                <label style="{label_style}" for="env" title="{description_env}">Environment Variables</label>
+                <textarea style="{input_style}" name="env" title="{description_env}" placeholder="FOO=BAR&#10;FOO2=BAR2"></textarea>
+            </div>
+            <div style="{div_style}">
+                <label style="{label_style}" for="mount_volume" title="{description_mount_volume}">Mount a named volume</label>
+                <input style="{input_style}; margin-bottom: 8px" name="mount_volume" title="{description_mount_volume}" value="{default_named_volume}"></input> 
+                <br />
+                <input type="checkbox" name="is_mount_volume">Mount the volume?</input>
+            </div>
+            <div style="{div_style}">
+                <label style="{label_style}" for="gpus" title="{description_gpus}">GPUs</label>
+                <input style="{input_style}" name="gpus" title="{description_gpus}" placeholder="e.g. all, 0, 1, 2, ..."></input>
+            </div>
         """.format(
+            div_style=div_style,
+            label_style=label_style,
+            input_style=input_style,
             description_memory_limit=description_memory_limit,
             description_env=description_env,
+            description_mount_volume=description_mount_volume,
+            default_named_volume=default_named_volume,
             description_gpus=description_gpus
         )
 
@@ -100,9 +122,8 @@ class MLHubDockerSpawner(DockerSpawner):
             extra_host_config['mem_limit'] = self.user_options.get(
                 'mem_limit')
         
-        if self.user_options.get('mount_volume') == 'on':
-            server_name = getattr(self, "name", "")
-            self.volumes = { 'jupyterhub-user-{username}' + server_name: "/workspace" }
+        if self.user_options.get('is_mount_volume') == 'on':
+            self.volumes = { self.user_options.get('mount_volume'): "/workspace" }
 
         if self.user_options.get('gpus'):
             extra_host_config['runtime'] = "nvidia"
