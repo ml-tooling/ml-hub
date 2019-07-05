@@ -41,7 +41,8 @@ class MLHubDockerSpawner(DockerSpawner):
                 <textarea style="{input_style}" name="env" title="{description_env}" placeholder="FOO=BAR&#10;FOO2=BAR2"></textarea>
             </div>
             <div style="{div_style}">
-                <input type="checkbox" name="is_mount_volume" checked>Mount named volume to /workspace?</input>
+                <input style="margin-right: 8px;" type="checkbox" name="is_mount_volume" checked></input>
+                <label style="font-weight: 400;" for="is_mount_volume">Mount named volume to /workspace?</label>
             </div>
             <div style="{div_style}">
                 <label style="{label_style}" for="gpus" title="{description_gpus}">GPUs</label>
@@ -88,10 +89,11 @@ class MLHubDockerSpawner(DockerSpawner):
 
         if self.user_options.get('gpus'):
             env['NVIDIA_VISIBLE_DEVICES'] = self.user_options.get('gpus')
-            env['CUDA_VISIBLE_DEVICES'] = self.user_options.get('gpus')
 
         if self.user_options.get('cpu_limit'):
             env["OMP_NUM_THREADS"] = self.user_options.get('cpu_limit')
+
+        env['SSH_JUMPHOST_TARGET'] = self.object_name
 
         return env
 

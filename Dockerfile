@@ -1,4 +1,5 @@
-FROM jupyterhub/jupyterhub:1.0.0
+#FROM jupyterhub/jupyterhub:1.0.0
+FROM mltooling/ssh-proxy:0.1.2
 
 WORKDIR /
 
@@ -33,6 +34,20 @@ RUN \
     make install && \
     apt-get clean
 
+# Install nodejs & npm for JupyterHub's configurable-http-proxy
+RUN \
+   apt-get install -y curl && \
+   curl -sL https://deb.nodesource.com/setup_10.x | bash - && \
+   apt-get install -y nodejs
+
+# Install JupyterHub
+RUN \
+   npm install -g configurable-http-proxy && \
+   python3 -m pip install jupyterhub   
+
+# Install git as needed for installing pip repos from git
+RUN \
+   apt-get install -y git
 
 RUN \
     pip install dockerspawner && \
@@ -41,6 +56,8 @@ RUN \
 
 COPY docker-res/nginx.conf /etc/nginx/nginx.conf
 COPY docker-res/lua-resty-http/ "/etc/nginx/nginx_plugins/lua-resty-http"
+COPY docker-res/scripts $_RESOURCES_PATH/scripts
+COPY docker-res/docker-entrypoint.sh $_RESOURCES_PATH/docker-entrypoint.sh
 COPY docker-res/mlhubspawner /mlhubspawner
 
 RUN \
@@ -51,4 +68,17 @@ RUN \
    rm -r /mlhubspawner
 
 ENV \
-    PATH=/usr/local/openresty/nginx/sbin:$PATH
+   _SSL_RESOURCES_PATH=$_RESOURCES_PATH/ssl \
+   PATH=/usr/local/openresty/nginx/sbin:$PATH
+
+RUN \
+  mkdir $_SSL_RESOURCES_PATH && chmod ug+rwx $_SSL_RESOURCES_PATH && \
+  chmod -R ug+rxw $_RESOURCES_PATH/scripts && \
+  chmod ug+rwx $_RESOURCES_PATH/docker-entrypoint.sh
+
+# Set python3 to default python. Needed for the ssh-proxy scripts
+RUN \
+   rm /usr/bin/python && \
+   ln -s /usr/bin/python3 /usr/bin/python
+
+ENTRYPOINT /bin/bash $_RESOURCES_PATH/docker-entrypoint.sh
