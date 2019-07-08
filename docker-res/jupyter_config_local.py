@@ -9,7 +9,8 @@ c = get_config()
 #c.JupyterHub.ip = '0.0.0.0'
 #c.DockerSpawner.host_ip = '0.0.0.0'
 # User containers will access hub by container name on the Docker network
-c.JupyterHub.hub_ip = 'mlhub' #'research-hub'
+c.JupyterHub.hub_ip = '0.0.0.0' #'research-hub'
+#c.ConfigurableHTTPProxy.default_target = "http://mlhub.jupyterhub:8081"
 c.JupyterHub.port = 8000
 
 #c.JupyterHub.hub_port = 8000
@@ -39,11 +40,13 @@ if env:
 
 c.DockerSpawner.extra_create_kwargs.update(kwargs_update)
 # Connect containers to this Docker network
-network_name = "jupyterhub"
+#network_name = "jupyterhub"
 c.DockerSpawner.use_internal_ip = True
-c.DockerSpawner.network_name = network_name
+#c.DockerSpawner.network_name = network_name
 # Pass the network name as argument to spawned containers
-c.DockerSpawner.extra_host_config = { 'network_mode': network_name, 'shm_size': '256m' }
+#c.DockerSpawner.extra_host_config = { 'network_mode': network_name, 'shm_size': '256m' }
+c.DockerSpawner.extra_host_config = { 'shm_size': '256m' }
+
 # Explicitly set notebook directory because we'll be mounting a host volume to
 # it.  Most jupyter/docker-stacks *-notebook images run the Notebook server as
 # user `jovyan`, and set the notebook directory to `/home/jovyan/work`.
@@ -61,11 +64,11 @@ if ENV_SERVICE_SSL_ENABLED is True or ENV_SERVICE_SSL_ENABLED == 'true':
 
 #c.DockerSpawner.extra_create_kwargs.update({ 'volume_driver': 'local' })
 # Dont remove containers once they are stopped - persist state
-c.DockerSpawner.remove_containers = False
+c.DockerSpawner.remove_containers = True
 # Workaround to prevent api problems
 c.DockerSpawner.will_resume = True
 # For debugging arguments passed to spawned containers
-c.DockerSpawner.debug = True
+#c.DockerSpawner.debug = True
 
 # TLS config
 #c.JupyterHub.port = 443
@@ -102,24 +105,3 @@ c.DockerSpawner.http_timeout = 60
 
 #c.JupyterHub.cookie_secret_file = os.path.join(data_dir,
 #    'jupyterhub_cookie_secret')
-
-#c.JupyterHub.db_url = 'postgresql://postgres:{password}@{host}/{db}'.format(
-#    host=os.environ['POSTGRES_HOST'],
-#    password=os.environ['POSTGRES_PASSWORD'],
-#    db=os.environ['POSTGRES_DB'],
-#)
-
-# Whitlelist users and admins
-# c.Authenticator.whitelist = whitelist = set()
-# c.Authenticator.admin_users = admin = set()
-# c.JupyterHub.admin_access = True
-# pwd = os.path.dirname(__file__)
-# with open(os.path.join(pwd, 'userlist')) as f:
-#     for line in f:
-#         if not line:
-#             continue
-#         parts = line.split()
-#         name = parts[0]
-#         whitelist.add(name)
-#         if len(parts) > 1 and parts[1] == 'admin':
-#             admin.add(name)
