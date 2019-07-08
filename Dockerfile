@@ -59,6 +59,7 @@ COPY docker-res/lua-resty-http/ "/etc/nginx/nginx_plugins/lua-resty-http"
 COPY docker-res/scripts $_RESOURCES_PATH/scripts
 COPY docker-res/docker-entrypoint.sh $_RESOURCES_PATH/docker-entrypoint.sh
 COPY docker-res/mlhubspawner /mlhubspawner
+COPY docker-res/jupyter_config_local.py /jupyter_config_local.py
 
 RUN \
     mkdir /var/log/nginx
@@ -80,5 +81,7 @@ RUN \
 RUN \
    rm /usr/bin/python && \
    ln -s /usr/bin/python3 /usr/bin/python
+
+ENV SSH_PERMIT_TARGET_PORT=8091
 
 ENTRYPOINT /bin/bash $_RESOURCES_PATH/docker-entrypoint.sh
