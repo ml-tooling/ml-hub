@@ -83,4 +83,6 @@ RUN \
    rm /usr/bin/python && \
    ln -s /usr/bin/python3 /usr/bin/python
 
+ENV SSH_PERMIT_TARGET_PORT=8091
+
 ENTRYPOINT /bin/bash $_RESOURCES_PATH/docker-entrypoint.sh
