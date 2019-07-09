@@ -11,4 +11,4 @@ nohup python $_RESOURCES_PATH/start_ssh.py &
 
 # Start server
 echo "Start server"
-jupyterhub -f /jupyter_config_local.py
+jupyterhub -f $_RESOURCES_PATH/jupyterhub_config.py

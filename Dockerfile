@@ -59,9 +59,11 @@ COPY docker-res/lua-resty-http/ "/etc/nginx/nginx_plugins/lua-resty-http"
 COPY docker-res/scripts $_RESOURCES_PATH/scripts
 COPY docker-res/docker-entrypoint.sh $_RESOURCES_PATH/docker-entrypoint.sh
 COPY docker-res/mlhubspawner /mlhubspawner
+COPY docker-res/jupyterhub_config.py $_RESOURCES_PATH/jupyterhub_config.py
 
 RUN \
-    mkdir /var/log/nginx
+    mkdir /var/log/nginx && \
+    touch $_RESOURCES_PATH/jupyterhub_user_config.py
 
 RUN \
    pip install /mlhubspawner && \

@@ -6,14 +6,10 @@ import os
 
 c = get_config()
 
-#c.JupyterHub.ip = '0.0.0.0'
-#c.DockerSpawner.host_ip = '0.0.0.0'
 # User containers will access hub by container name on the Docker network
 c.JupyterHub.hub_ip = '0.0.0.0' #'research-hub'
-#c.ConfigurableHTTPProxy.default_target = "http://mlhub.jupyterhub:8081"
 c.JupyterHub.port = 8000
 
-#c.JupyterHub.hub_port = 8000
 c.Spawner.port = 8090
 c.Authenticator.admin_users = {"admin"}
 c.JupyterHub.admin_access = True
@@ -28,52 +24,19 @@ c.DockerSpawner.image = "mltooling/ml-workspace:0.3.6-SNAPSHOT"
 c.Spawner.cmd = "python /resources/run.py"
 spawn_cmd = ['--NotebookApp.allow_root=True', '--NotebookApp.iopub_data_rate_limit=2147483647', '--NotebookApp.allow_origin="*"']
 
-env = {}
 kwargs_update = { 'command': spawn_cmd, 'labels': {}}
-if os.getenv('STUDIO_ENDPOINT', None) is not None:
-    kwargs_update['labels']['studio.origin'] = 'studio'
-    env['STUDIO_ENDPOINT'] = os.getenv('STUDIO_ENDPOINT', '')
-    env['STUDIO_API_TOKEN'] = os.getenv('STUDIO_API_TOKEN', '')
-
-if env:
-    c.Spawner.environment = env
 
 c.DockerSpawner.extra_create_kwargs.update(kwargs_update)
 # Connect containers to this Docker network
-#network_name = "jupyterhub"
 c.DockerSpawner.use_internal_ip = True
-#c.DockerSpawner.network_name = network_name
-# Pass the network name as argument to spawned containers
-#c.DockerSpawner.extra_host_config = { 'network_mode': network_name, 'shm_size': '256m' }
 c.DockerSpawner.extra_host_config = { 'shm_size': '256m' }
 
-# Explicitly set notebook directory because we'll be mounting a host volume to
-# it.  Most jupyter/docker-stacks *-notebook images run the Notebook server as
-# user `jovyan`, and set the notebook directory to `/home/jovyan/work`.
-# We follow the same convention.
-#notebook_dir = os.environ.get('DOCKER_NOTEBOOK_DIR') or '/home/jovyan/work'
-#notebook_dir = '/home/jovyan/'
-#c.DockerSpawner.notebook_dir = notebook_dir
-# Mount the real user's Docker volume on the host to the notebook user's
-# notebook directory in the container
-# c.DockerSpawner.volumes = { 'jupyterhub-user-{username}': notebook_dir }
-
-ENV_SERVICE_SSL_ENABLED = os.getenv('SERVICE_SSL_ENABLED', False)
-if ENV_SERVICE_SSL_ENABLED is True or ENV_SERVICE_SSL_ENABLED == 'true':
-    c.DockerSpawner.volumes['studio-ssl'] = os.getenv('SERVICE_SSL_PATH', '/resources/ssl')
-
-#c.DockerSpawner.extra_create_kwargs.update({ 'volume_driver': 'local' })
 # Dont remove containers once they are stopped - persist state
 c.DockerSpawner.remove_containers = True
 # Workaround to prevent api problems
 c.DockerSpawner.will_resume = True
 # For debugging arguments passed to spawned containers
 #c.DockerSpawner.debug = True
-
-# TLS config
-#c.JupyterHub.port = 443
-#c.JupyterHub.ssl_key = os.environ['SSL_KEY']
-#c.JupyterHub.ssl_cert = os.environ['SSL_CERT']
 
 # Authenticate users with GitHub OAuth
 #c.JupyterHub.authenticator_class = 'oauthenticator.GitHubOAuthenticator'
@@ -86,16 +49,6 @@ c.JupyterHub.allow_named_servers = True
 
 c.DockerSpawner.name_template = '{prefix}-{username}{servername}'
 
-
-# c.JupyterHub.spawner_class = 'dockerspawner.DockerSpawner'
-# c.JupyterHub.spawner_class = 'imagespawner.DockerImageChooserSpawner'
-
-# The admin must pull these before they can be used.
-c.DockerImageChooserSpawner.dockerimages = [
-	'mltooling/ml-workspace',
-	'docker.wdf.sap.corp:51150/com.sap.sapai.studio/studio-workspace'
-]
-
 c.JupyterHub.spawner_class = 'mlhubspawner.MLHubDockerSpawner'
 
 c.DockerSpawner.http_timeout = 60
@@ -105,3 +58,12 @@ c.DockerSpawner.http_timeout = 60
 
 #c.JupyterHub.cookie_secret_file = os.path.join(data_dir,
 #    'jupyterhub_cookie_secret')
+
+# Allow passing an additional config upon mlhub container startup. 
+# An empty config file already exists in case the user does not mount another config file.
+# The extra config could look like:
+    # jupyterhub_user_config.py
+    # > c = get_config()
+    # > c.DockerSpawner.extra_create_kwargs.update({'labels': {'foo': 'bar'}})
+# See https://traitlets.readthedocs.io/en/stable/config.html#configuration-files-inheritance 
+load_subconfig("{}/jupyterhub_user_config.py".format(os.getenv("_RESOURCES_PATH")))
