@@ -19,7 +19,7 @@ c.LocalAuthenticator.add_user_cmd = ['useradd', '-p', '$1$Lbk613af$d6FXfrpuQYTAk
 notebook_dir = '/workspace'
 c.DockerSpawner.notebook_dir = notebook_dir
 
-c.DockerSpawner.image = "mltooling/ml-workspace:0.3.6-SNAPSHOT"
+c.DockerSpawner.image = "mltooling/ml-workspace:0.3.7"
 
 c.Spawner.cmd = "python /resources/run.py"
 spawn_cmd = ['--NotebookApp.allow_root=True', '--NotebookApp.iopub_data_rate_limit=2147483647', '--NotebookApp.allow_origin="*"']
