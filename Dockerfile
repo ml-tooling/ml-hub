@@ -60,6 +60,8 @@ COPY docker-res/scripts $_RESOURCES_PATH/scripts
 COPY docker-res/docker-entrypoint.sh $_RESOURCES_PATH/docker-entrypoint.sh
 COPY docker-res/mlhubspawner /mlhubspawner
 COPY docker-res/jupyterhub_config.py $_RESOURCES_PATH/jupyterhub_config.py
+COPY docker-res/jupyterhub-mod/template-page.html /usr/local/share/jupyterhub/templates/page.html
+COPY docker-res/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/templates/home.html
 
 RUN \
     mkdir /var/log/nginx && \
