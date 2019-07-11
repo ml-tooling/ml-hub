@@ -17,6 +17,8 @@ import ipaddress
 from traitlets import (default)
 from tornado import gen
 import multiprocessing
+import time, datetime
+import math
 
 # we create networks in the range of 172.33-255.0.0/24
 # Docker by default uses the range 172.17-32.0.0, so we should be save using that range
@@ -68,6 +70,7 @@ class MLHubDockerSpawner(DockerSpawner):
 
         description_memory_limit = 'Minimum limit must be 4mb as required by Docker.'
         description_env = 'In the form env=value (one per line)'
+        description_days_to_live = 'Number of days the container should live'
         description_gpus = 'Empty for no GPU-acess. A comma-separted list of numbers describe the indices of the accessible GPUs.'
 
         label_style = "width: 25%"
@@ -96,6 +99,10 @@ class MLHubDockerSpawner(DockerSpawner):
                 <label style="font-weight: 400;" for="is_mount_volume">Mount named volume to /workspace?</label>
             </div>
             <div style="{div_style}">
+                <label style="{label_style}" for="days_to_live" title="{description_days_to_live}">Requested days to live</label>
+                <input style="{input_style}" name="days_to_live" title="{description_days_to_live}" placeholder="e.g. 3"></input>
+            </div>
+            <div style="{div_style}">
                 <label style="{label_style}" for="gpus" title="{description_gpus}">GPUs</label>
                 <input style="{input_style}" name="gpus" title="{description_gpus}" placeholder="e.g. all, 0, 1, 2, ..."></input>
             </div>
@@ -105,6 +112,7 @@ class MLHubDockerSpawner(DockerSpawner):
             input_style=input_style,
             description_memory_limit=description_memory_limit,
             description_env=description_env,
+            description_days_to_live=description_days_to_live,
             description_gpus=description_gpus
         )
 
@@ -117,6 +125,7 @@ class MLHubDockerSpawner(DockerSpawner):
         options["cpu_limit"] = formdata.get('cpu_limit', [None])[0]
         options["mem_limit"] = formdata.get('mem_limit', [None])[0]
         options["mount_volume"] = formdata.get('mount_volume', [False])[0]
+        options["days_to_live"] = formdata.get('days_to_live', [None])[0]
 
         env = {}
         env_lines = formdata.get('env', [''])
@@ -173,10 +182,20 @@ class MLHubDockerSpawner(DockerSpawner):
             default_named_volume = 'jupyterhub-user-{username}' + server_name
             self.volumes = {default_named_volume: "/workspace"}
 
+        extra_create_kwargs = {}
+        extra_create_kwargs['labels'] = {}
+        if self.user_options.get('days_to_live'):
+            days_to_live_in_seconds = int(self.user_options.get('days_to_live')) * 24 * 60 * 60 # days * hours_per_day * minutes_per_hour * seconds_per_minute
+            expiration_timestamp = time.time() + days_to_live_in_seconds
+            extra_create_kwargs['labels']['expiration_timestamp_seconds'] =  str(expiration_timestamp)
+        else:
+            extra_create_kwargs['labels']['expiration_timestamp_seconds'] = str(0)
+
         if self.user_options.get('gpus'):
             extra_host_config['runtime'] = "nvidia"
 
         self.extra_host_config.update(extra_host_config)
+        self.extra_create_kwargs.update(extra_create_kwargs)
 
         network_name = self.object_name
         created_network = None
@@ -255,3 +274,25 @@ class MLHubDockerSpawner(DockerSpawner):
                                           gateway=(next_cidr.network_address + 1).exploded)
         ipam_config = docker.types.IPAMConfig(pool_configs=[ipam_pool])
         return client.networks.create(name, ipam=ipam_config)
+
+    def get_lifetime_timestamp(self):
+        if self.container_id is None or self.container_id == '':
+            return None
+        
+        try:
+            container_labels = self.highlevel_docker_client.containers.get(self.container_id).labels
+            expiration_timestamp_seconds = float(container_labels.get('expiration_timestamp_seconds', '0'))
+            if expiration_timestamp_seconds == 0:
+                return None
+            return expiration_timestamp_seconds
+        except:
+            return None
+    
+    def get_container_metadata(self):
+        meta_string = ""
+        lifetime_timestamp = self.get_lifetime_timestamp()
+        if lifetime_timestamp is not None:
+            difference_in_days = math.ceil((lifetime_timestamp - time.time())/60/60/24)
+            meta_string = "(Expires: {}d)".format(difference_in_days)
+
+        return meta_string

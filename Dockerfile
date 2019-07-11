@@ -62,6 +62,7 @@ COPY docker-res/mlhubspawner /mlhubspawner
 COPY docker-res/jupyterhub_config.py $_RESOURCES_PATH/jupyterhub_config.py
 COPY docker-res/jupyterhub-mod/template-page.html /usr/local/share/jupyterhub/templates/page.html
 COPY docker-res/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/templates/home.html
+COPY docker-res/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/admin.html
 
 RUN \
     mkdir /var/log/nginx && \
