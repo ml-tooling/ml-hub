@@ -36,6 +36,22 @@
 
   {% set named_spawners = user.all_spawners(include_default=False)|list %}
 
+  <script>
+      let onAddServerClick = (self, event) => {
+            // copied some event listener code from home.js
+            // prevent the original event listener (defined in home.js) from firing
+            event.stopImmediatePropagation();
+            let row = $(self).parent();
+            let serverName = row.find(".new-server-name").val();
+            let serverUser = row.find(".new-server-user");
+            let user = window.jhdata.user; // copied from home.js
+            if (serverUser.length === 1) {
+                user = serverUser.val();
+            }
+            window.location.href = "../spawn/" + user + "/" + serverName;
+      }
+  </script>
+
   <table class="server-table table table-striped">
     <thead>
       <tr>
@@ -49,7 +65,7 @@
       <tr class="home-server-row add-server-row">
         <td colspan="4">
           <input class="new-server-name" placeholder="Name your server">
-          <a role="button" class="new-server-btn" class="add-server btn btn-xs btn-primary">
+          <a role="button" class="new-server-btn" class="add-server btn btn-xs btn-primary" onclick="onAddServerClick(this, event)">
             Add New Server
           </a>
         </td>
@@ -97,5 +113,32 @@
 {{ super() }}
 <script type="text/javascript">
 require(["home"]);
+
+// load users from JupyterHub to let admins spawn named servers for existing users
+// unfortunately, we cannot determine easily whether or not the current user is an admin user, so just fire the request and 
+// handle the status code
+$(document).ready(() => {
+    fetch("/hub/api/users")
+        .then(res => {
+            // non-admin users will get a forbidden status code
+            if (!res.ok) {
+                throw Error(res.statusText);
+            }
+            return res.json();
+        })
+        .then(res => {
+            // only create the select element and insert it into the DOM when request was successful
+            let select = $("<select>", {class: "new-server-user"});
+            $.each(res, function (i, item) {
+                select.append($('<option>', { 
+                    value: item.name,
+                    text : item.name 
+                }));
+            });
+
+            // add the user dropdown before the name-server input field to the left
+            select.insertBefore(".new-server-name")
+        }).catch(() => {});
+});
 </script>
 {% endblock %}
