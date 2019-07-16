@@ -50,9 +50,9 @@ RUN \
    apt-get install -y git
 
 RUN \
-    pip install dockerspawner && \
-    pip install git+https://github.com/jupyterhub/nativeauthenticator@919a37460cdb46ef536985c0cb0c1109d5e0e483 && \
-    pip install git+https://github.com/ryanlovett/imagespawner
+   pip install dockerspawner && \
+   pip install git+https://github.com/ml-tooling/nativeauthenticator@c927c95e9f10878448a7549f5e9e6a85bc583750 && \
+   pip install git+https://github.com/ryanlovett/imagespawner
 
 COPY docker-res/nginx.conf /etc/nginx/nginx.conf
 COPY docker-res/lua-resty-http/ "/etc/nginx/nginx_plugins/lua-resty-http"
@@ -60,7 +60,6 @@ COPY docker-res/scripts $_RESOURCES_PATH/scripts
 COPY docker-res/docker-entrypoint.sh $_RESOURCES_PATH/docker-entrypoint.sh
 COPY docker-res/mlhubspawner /mlhubspawner
 COPY docker-res/jupyterhub_config.py $_RESOURCES_PATH/jupyterhub_config.py
-COPY docker-res/jupyterhub-mod/template-page.html /usr/local/share/jupyterhub/templates/page.html
 COPY docker-res/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/templates/home.html
 COPY docker-res/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/admin.html
 

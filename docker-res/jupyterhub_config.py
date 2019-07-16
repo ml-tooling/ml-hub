@@ -25,8 +25,11 @@ c.Spawner.cmd = "python /resources/run.py"
 spawn_cmd = ['--NotebookApp.allow_root=True', '--NotebookApp.iopub_data_rate_limit=2147483647', '--NotebookApp.allow_origin="*"']
 
 kwargs_update = { 'command': spawn_cmd, 'labels': {}}
-
 c.DockerSpawner.extra_create_kwargs.update(kwargs_update)
+
+# Set default environment variables
+c.Spawner.environment = {"AUTHENTICATE_VIA_JUPYTER": "true", "SHUTDOWN_INACTIVE_KERNELS": "true"}
+
 # Connect containers to this Docker network
 c.DockerSpawner.use_internal_ip = True
 c.DockerSpawner.extra_host_config = { 'shm_size': '256m' }
@@ -67,3 +70,20 @@ c.DockerSpawner.http_timeout = 60
     # > c.DockerSpawner.extra_create_kwargs.update({'labels': {'foo': 'bar'}})
 # See https://traitlets.readthedocs.io/en/stable/config.html#configuration-files-inheritance 
 load_subconfig("{}/jupyterhub_user_config.py".format(os.getenv("_RESOURCES_PATH")))
+
+def _get_path_to_library(module) -> str:
+        """
+        Get the path to a imported module.
+        # Arguments
+            module (module): Imported python module
+        # Returns
+            Full path to the provided module.
+        """
+        try:
+            root_package = module.__name__.split(".")[0]
+            return module.__file__.split(root_package)[0] + root_package
+        except Exception as e:
+            pass
+
+import nativeauthenticator
+c.JupyterHub.template_paths = ["{}/templates/".format(_get_path_to_library(nativeauthenticator))]
