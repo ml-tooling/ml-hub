@@ -81,6 +81,13 @@
         </a>
         {%- endif %}
       </td>
+      <td class="ssh-col col-sm-1 text-center">
+        {%- if admin_access %}
+        <a role="button" class="ssh-server btn btn-xs btn-primary{% if not spawner.active %} hidden{% endif %}">
+        ssh access
+        </a>
+        {%- endif %}
+      </td>
       <td class="edit-col col-sm-1 text-center">
       {%- if spawner.name == '' -%}
         <a role="button" class="edit-user btn btn-xs btn-primary">edit user</a>
@@ -133,6 +140,11 @@
   </div>
 {% endcall %}
 
+{# CUSTOM STUFF #}
+{% call modal('SSH Setup') %}
+  Execute this command to setup the SSH connection to the given server: <span class="ssh-setup-command"></span>
+{% endcall %}
+
 {% macro user_modal(name, multi=False) %}
 {% call modal(name, btn_class='btn-primary save-button') %}
 <div class="form-group">
@@ -163,5 +175,30 @@
 {{ super() }}
 <script type="text/javascript">
 require(["admin"]);
+
+$(".ssh-server").click(function() {
+    let el = $(this);
+    let row = el.parent().parent();
+    let user = row.data("user");
+    let serverName = row.data("server-name");
+    if (serverName && serverName !== '') {
+        serverName = serverName + "/"; // do it like this, otherwise there is one slash too much in the url if the serverName is empty
+    }
+    let dialog = $("#ssh-setup-dialog");
+    fetch("/user/" + user + "/" + serverName + "tooling/ssh/setup-command?origin=" + window.location.origin)
+        .then(res => {
+            if (res.status === 302) {
+                return "You are not authorized. Try to access the server first and authorize."
+            }
+            else if (!res.ok) {
+                return "Unfortunately some error occurred.";
+            }
+
+            return res.text();
+        })
+        .then(res =>  dialog.find(".ssh-setup-command").text(res));
+    dialog.modal();
+  });
+
 </script>
 {% endblock %}
