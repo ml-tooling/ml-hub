@@ -17,10 +17,6 @@
       {% if not default_server.active %}Start{% endif %}
       My Server
       </a>
-      <a id="ssh" role="button" class="btn btn-lg btn-primary"  
-        href="javascript:window.open('{{ url }}/ssh/setup?hostname=' + window.location.hostname + '&port=' + window.location.port, '_blank');" >
-        SSH Setup
-      </a>
     </div>
   </div>
   {% if allow_named_servers %}
@@ -97,10 +93,6 @@
             start
           </a>
           <a role="button" class="delete-server btn btn-xs btn-danger{% if spawner.active %} hidden{% endif %}" id="delete-{{ spawner.name }}">delete</a>
-          <a role="button" class="btn btn-xs btn-primary {% if not spawner.active %} hidden{% endif %}" id="ssh-{{ spawner.name }}"  
-            href="javascript:window.open('{{ user.server_url(spawner.name) }}/ssh/setup?hostname=' + window.location.hostname + '&port=' + window.location.port, '_blank');">
-            SSH Setup
-          </a>
         </td>
       </tr>
       {% endfor %}
@@ -137,7 +129,9 @@ $(document).ready(() => {
             });
 
             // add the user dropdown before the name-server input field to the left
-            select.insertBefore(".new-server-name")
+            select.insertBefore(".new-server-name");
+            // some UI sugar
+            $('<span> / </span>').insertBefore(".new-server-name");
         }).catch(() => {});
 });
 </script>

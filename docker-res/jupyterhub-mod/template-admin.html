@@ -141,8 +141,9 @@
 {% endcall %}
 
 {# CUSTOM STUFF #}
-{% call modal('SSH Setup') %}
-  Execute this command to setup the SSH connection to the given server: <span class="ssh-setup-command"></span>
+{% call modal('SSH Setup', btn_label="Copy to Clipboard", btn_class='btn-primary copy-clipboard-button') %}
+  Execute this command to setup the SSH connection to server <span class="server-name"></span>: 
+  <textarea class="ssh-setup-command" readonly="true" style="width: 100%; padding: 4px; overflow-wrap: normal;"></textarea>
 {% endcall %}
 
 {% macro user_modal(name, multi=False) %}
@@ -182,10 +183,13 @@ $(".ssh-server").click(function() {
     let user = row.data("user");
     let serverName = row.data("server-name");
     if (serverName && serverName !== '') {
-        serverName = serverName + "/"; // do it like this, otherwise there is one slash too much in the url if the serverName is empty
+        serverName = "/" + serverName; // do it like this, otherwise there is one slash too much in the url if the serverName is empty
     }
     let dialog = $("#ssh-setup-dialog");
-    fetch("/user/" + user + "/" + serverName + "tooling/ssh/setup-command?origin=" + window.location.origin)
+    dialog.find(".server-name").text(user + serverName);
+    let setupCommandTextField = dialog.find(".ssh-setup-command");
+    dialog.find('.copy-clipboard-button').click(() => {setupCommandTextField.select(); window.document.execCommand('copy');})
+    fetch("/user/" + user + serverName + "/tooling/ssh/setup-command?origin=" + window.location.origin)
         .then(res => {
             if (res.status === 302) {
                 return "You are not authorized. Try to access the server first and authorize."
@@ -196,7 +200,7 @@ $(".ssh-server").click(function() {
 
             return res.text();
         })
-        .then(res =>  dialog.find(".ssh-setup-command").text(res));
+        .then(res =>  setupCommandTextField.text(res));
     dialog.modal();
   });
 
