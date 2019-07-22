@@ -58,7 +58,7 @@ RUN \
 
 RUN \
    pip install --no-cache dockerspawner && \
-   pip install --no-cache git+https://github.com/ml-tooling/nativeauthenticator@c927c95e9f10878448a7549f5e9e6a85bc583750 && \
+   pip install --no-cache git+https://github.com/ml-tooling/nativeauthenticator@f62456b67baa52466d58c7a98ffcca0444cbab15 && \
    pip install --no-cache git+https://github.com/ryanlovett/imagespawner && \
    clean-layer.sh
 
