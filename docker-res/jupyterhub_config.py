@@ -19,7 +19,7 @@ c.LocalAuthenticator.add_user_cmd = ['useradd', '-p', '$1$Lbk613af$d6FXfrpuQYTAk
 notebook_dir = '/workspace'
 c.DockerSpawner.notebook_dir = notebook_dir
 
-c.DockerSpawner.image = "mltooling/ml-workspace:0.4.1"
+c.DockerSpawner.image = "mltooling/ml-workspace:0.5.0"
 
 c.Spawner.cmd = "python /resources/run.py"
 spawn_cmd = ['--NotebookApp.allow_root=True', '--NotebookApp.iopub_data_rate_limit=2147483647', '--NotebookApp.allow_origin="*"']
@@ -50,7 +50,10 @@ c.JupyterHub.authenticator_class = 'nativeauthenticator.NativeAuthenticator'
 
 c.JupyterHub.allow_named_servers = True
 
-c.DockerSpawner.name_template = '{prefix}-{username}{servername}'
+c.DockerSpawner.prefix = 'workspace'
+c.DockerSpawner.name_template = '{prefix}-{username}-hub{servername}'
+# Forbid user names that could collide with a named server to prevent security & routing problems
+c.Authenticator.username_pattern = '^((?!-hub).)*$'
 
 c.JupyterHub.spawner_class = 'mlhubspawner.MLHubDockerSpawner'
 
