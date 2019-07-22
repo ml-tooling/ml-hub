@@ -63,7 +63,6 @@ RUN \
    clean-layer.sh
 
 COPY docker-res/nginx.conf /etc/nginx/nginx.conf
-COPY docker-res/lua-resty-http/ "/etc/nginx/nginx_plugins/lua-resty-http"
 COPY docker-res/scripts $_RESOURCES_PATH/scripts
 COPY docker-res/docker-entrypoint.sh $_RESOURCES_PATH/docker-entrypoint.sh
 COPY docker-res/mlhubspawner /mlhubspawner
