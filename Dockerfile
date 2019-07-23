@@ -1,4 +1,4 @@
-FROM mltooling/ssh-proxy:0.1.4
+FROM mltooling/ssh-proxy:0.1.5
 
 WORKDIR /
 
@@ -92,6 +92,8 @@ RUN \
    rm /usr/bin/python && \
    ln -s /usr/bin/python3 /usr/bin/python
 
-ENV SSH_PERMIT_TARGET_PORT=8091
+ENV \
+   SSH_PERMIT_TARGET_PORT=8091 \
+   SSH_PERMIT_TARGET_HOST="workspace-*"
 
 ENTRYPOINT /bin/bash $_RESOURCES_PATH/docker-entrypoint.sh
