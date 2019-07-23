@@ -77,6 +77,7 @@ RUN \
 RUN \
    pip install --no-cache /mlhubspawner && \
    rm -r /mlhubspawner && \
+   pip install tornado==5.1.1 && \
    clean-layer.sh
 
 ENV \
