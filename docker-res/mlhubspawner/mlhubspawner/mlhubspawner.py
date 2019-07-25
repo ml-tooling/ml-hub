@@ -150,7 +150,7 @@ class MLHubDockerSpawner(DockerSpawner):
             env['NVIDIA_VISIBLE_DEVICES'] = self.user_options.get('gpus')
 
         if self.user_options.get('cpu_limit'):
-            env["OMP_NUM_THREADS"] = self.user_options.get('cpu_limit')
+            env["MAX_NUM_THREADS"] = self.user_options.get('cpu_limit')
 
         env['SSH_JUMPHOST_TARGET'] = self.object_name
 
