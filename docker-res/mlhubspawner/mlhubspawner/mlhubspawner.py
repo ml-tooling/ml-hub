@@ -19,6 +19,7 @@ from tornado import gen
 import multiprocessing
 import time, datetime
 import math
+import re
 
 # we create networks in the range of 172.33-255.0.0/24
 # Docker by default uses the range 172.17-32.0.0, so we should be save using that range
@@ -59,7 +60,7 @@ class MLHubDockerSpawner(DockerSpawner):
         kwargs.update(kwargs_from_env())
         kwargs.update(self.client_kwargs)
         return docker.DockerClient(**kwargs)
-
+    
     @default('options_form')
     def _options_form(self):
         """Return the spawner options screen"""
@@ -143,6 +144,19 @@ class MLHubDockerSpawner(DockerSpawner):
     def get_env(self):
         env = super().get_env()
 
+        # Replace JupyterHub container id with the name for spawned workspaces, so that the workspaces can connect to the hub even if the hub was removed and recreated.
+        # Otherwise, the workspaces would have the old container id that does not exist anymore in such a case.
+        hostname_regex = re.compile("http(s)?://([a-zA-Z0-9]+):[0-9]{3,5}.*")
+        jupyterhub_api_url = env.get('JUPYTERHUB_API_URL')
+        mlhub_container_name = os.getenv("MLHUB_NAME", "mlhub")
+        if jupyterhub_api_url:
+            hostname = hostname_regex.match(jupyterhub_api_url).group(2)
+            env['JUPYTERHUB_API_URL'] = jupyterhub_api_url.replace(hostname, mlhub_container_name)
+        jupyterhub_activity_url = env.get('JUPYTERHUB_ACTIVITY_URL')
+        if jupyterhub_activity_url:
+            hostname = hostname_regex.match(jupyterhub_activity_url).group(2)
+            env['JUPYTERHUB_ACTIVITY_URL'] = jupyterhub_activity_url.replace(hostname, mlhub_container_name)
+        
         if self.user_options.get('env'):
             env.update(self.user_options.get('env'))
 
@@ -223,7 +237,11 @@ class MLHubDockerSpawner(DockerSpawner):
                     "Could not connect mlhub to the network and, thus, cannot create the container.")
                 return
 
+        # set the remove flag to trigger the remove object logic in super class to delete the container if it already exists.
+        # reset the flag afterwards to prevent the container from being removed when just stopped
+        self.remvove = True
         res = yield super().start()
+        self.remove = False
         return res
 
     def create_network(self, name):
