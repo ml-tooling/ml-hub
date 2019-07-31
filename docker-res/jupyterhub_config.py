@@ -67,12 +67,6 @@ c.Authenticator.username_pattern = '^((?!-hub).)*$'
 NATIVE_AUTHENTICATOR_CLASS = 'nativeauthenticator.NativeAuthenticator'
 c.JupyterHub.authenticator_class = NATIVE_AUTHENTICATOR_CLASS # override in your config if you want to use a different authenticator
 
-# Add nativeauthenticator-specific templates
-if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
-    import nativeauthenticator
-    c.JupyterHub.template_paths = ["{}/templates/".format(_get_path_to_library(nativeauthenticator))]
-
-
 # --- Load user config ---
 # Allow passing an additional config upon mlhub container startup.
 # Enables the user to override all configurations occurring above the load_subconfig command; be careful to not break anything ;)
@@ -81,5 +75,13 @@ if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
     # jupyterhub_user_config.py
     # > c = get_config()
     # > c.DockerSpawner.extra_create_kwargs.update({'labels': {'foo': 'bar'}})
-# See https://traitlets.readthedocs.io/en/stable/config.html#configuration-files-inheritance 
+# See https://traitlets.readthedocs.io/en/stable/config.html#configuration-files-inheritance
 load_subconfig("{}/jupyterhub_user_config.py".format(os.getenv("_RESOURCES_PATH")))
+
+# Add nativeauthenticator-specific templates
+if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
+    import nativeauthenticator
+    # if template_paths is not set yet in user_config, it is of type traitlets.config.loader.LazyConfigValue; in other words, it was not initialized yet
+    if not isinstance(c.JupyterHub.template_paths, list):
+        c.JupyterHub.template_paths = []
+    c.JupyterHub.template_paths.append("{}/templates/".format(_get_path_to_library(nativeauthenticator)))
