@@ -34,15 +34,13 @@ c.JupyterHub.allow_named_servers = True
 
 c.Spawner.port = 8090
 
-c.Spawner.cmd = "python /resources/run.py"
-
 # Set default environment variables used by our ml-workspace container
 c.Spawner.environment = {"AUTHENTICATE_VIA_JUPYTER": "true", "SHUTDOWN_INACTIVE_KERNELS": "true"}
 
 # --- Spawner-specific ----
 c.JupyterHub.spawner_class = 'mlhubspawner.MLHubDockerSpawner' # override in your config if you want to have a different spawner. If it is the or inherits from DockerSpawner, the c.DockerSpawner config can have an effect.
 
-c.DockerSpawner.image = "mltooling/ml-workspace:0.5.0"
+c.DockerSpawner.image = "mltooling/ml-workspace:0.5.6"
 c.DockerSpawner.notebook_dir = '/workspace'
 
 # Connect containers to this Docker network
