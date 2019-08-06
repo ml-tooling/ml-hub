@@ -13,6 +13,7 @@ import docker.errors
 from docker.utils import kwargs_from_env
 
 import os
+import socket
 import ipaddress
 from traitlets import (default)
 from tornado import gen
@@ -26,8 +27,6 @@ import re
 INITIAL_CIDR_FIRST_OCTET = 172
 INITIAL_CIDR_SECOND_OCTET = 33
 INITIAL_CIDR = "{}.33.0.0/24".format(INITIAL_CIDR_FIRST_OCTET)
-
-MLHUB_NAME = os.getenv("MLHUB_NAME", "mlhub")
 
 def has_complete_network_information(network):
     """Convenient function to check whether the docker.Network object has all required properties.
@@ -46,6 +45,14 @@ def has_complete_network_information(network):
 class MLHubDockerSpawner(DockerSpawner):
     """Provides the possibility to spawn docker containers with specific options, such as resource limits (CPU and Memory), Environment Variables, ..."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Get the MLHub container name to be used as the DNS name for the spawned workspaces, so they can connect to the Hub even if the container is
+        # removed and restarted
+        client = self.highlevel_docker_client
+        self.hub_name = client.containers.list(filters={"id": socket.gethostname()})[0].name # TODO: set default to mlhub?
+    
     @property
     def highlevel_docker_client(self):
         """Create a highlevel docker client as 'self.client' is the low-level API client.
@@ -114,7 +121,7 @@ class MLHubDockerSpawner(DockerSpawner):
                 <label style="font-weight: 400;" for="is_mount_volume">Mount named volume to /workspace?</label>
             </div>
             <div style="{div_style}">
-                <label style="{label_style}" for="days_to_live" title="{description_days_to_live}">Requested days to live {optional_label}</label>
+                <label style="{label_style}" for="days_to_live" title="{description_days_to_live}">Days to live {optional_label}</label>
                 <input style="{input_style}" name="days_to_live" title="{description_days_to_live}" placeholder="e.g. 3"></input>
             </div>
             <div style="{div_style}">
@@ -167,14 +174,13 @@ class MLHubDockerSpawner(DockerSpawner):
         # Otherwise, the workspaces would have the old container id that does not exist anymore in such a case.
         hostname_regex = re.compile("http(s)?://([a-zA-Z0-9]+):[0-9]{3,5}.*")
         jupyterhub_api_url = env.get('JUPYTERHUB_API_URL')
-        mlhub_container_name = MLHUB_NAME
         if jupyterhub_api_url:
             hostname = hostname_regex.match(jupyterhub_api_url).group(2)
-            env['JUPYTERHUB_API_URL'] = jupyterhub_api_url.replace(hostname, mlhub_container_name)
+            env['JUPYTERHUB_API_URL'] = jupyterhub_api_url.replace(hostname, self.hub_name)
         jupyterhub_activity_url = env.get('JUPYTERHUB_ACTIVITY_URL')
         if jupyterhub_activity_url:
             hostname = hostname_regex.match(jupyterhub_activity_url).group(2)
-            env['JUPYTERHUB_ACTIVITY_URL'] = jupyterhub_activity_url.replace(hostname, mlhub_container_name)
+            env['JUPYTERHUB_ACTIVITY_URL'] = jupyterhub_activity_url.replace(hostname, self.hub_name)
         
         if self.user_options.get('env'):
             env.update(self.user_options.get('env'))
@@ -217,7 +223,7 @@ class MLHubDockerSpawner(DockerSpawner):
 
         extra_create_kwargs = {}
         # set default label 'origin' to know for sure which containers where started via the hub
-        extra_create_kwargs['labels'] = {"origin": MLHUB_NAME}
+        extra_create_kwargs['labels'] = {"origin": self.hub_name}
         if self.user_options.get('days_to_live'):
             days_to_live_in_seconds = int(self.user_options.get('days_to_live')) * 24 * 60 * 60 # days * hours_per_day * minutes_per_hour * seconds_per_minute
             expiration_timestamp = time.time() + days_to_live_in_seconds
@@ -246,7 +252,7 @@ class MLHubDockerSpawner(DockerSpawner):
             return
 
         try:
-            mlhub_container_id = os.getenv("HOSTNAME", MLHUB_NAME)
+            mlhub_container_id = os.getenv("HOSTNAME", self.hub_name)
             created_network.connect(mlhub_container_id)
         except docker.errors.APIError as e:
             # In the case of an 403 error, JupyterHub is already in the network which is okay -> continue starting the new container
