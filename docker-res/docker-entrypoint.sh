@@ -15,7 +15,12 @@ function start_ssh {
 function start_jupyterhub {
     # Start server
     echo "Start JupyterHub"
-    jupyterhub -f $_RESOURCES_PATH/jupyterhub_config.py &
+    config_file=$_RESOURCES_PATH/jupyterhub_config.py
+    execution_mode=${EXECUTION_MODE:-local}
+    if [ "$execution_mode" == "k8s" ]; then
+      config_file=$_RESOURCES_PATH/kubernetes/jupyterhub_config.py
+    fi
+    jupyterhub -f config_file &
 }
 
 start_ssh

@@ -1,0 +1,38 @@
+proxy:
+  secretToken: 4bda3bd04f6ae5ia28368bf7b5514712351fd9cf8edb09ce9b26f73500f8aa54b
+
+singleuser:
+  storage:
+    type: none
+  image: 
+    name: mltooling/ml-workspace
+    tag: 0.5.6
+  startTimeout: 120
+  cmd:
+  uid: 0
+  fsGid: 0
+
+hub:
+  db:
+    type: foo
+  image:
+    name: mltooling/ml-hub
+    tag: 0.2-SNAPSHOT
+    pullPolicy: Always
+  uid: 0
+  allowNamedServers: True
+  extraConfig:
+     template_paths: "c.JupyterHub.template_paths = ['/usr/local/lib/python3.6/dist-packages/nativeauthenticator/templates/']"
+     port: "c.Spawner.port = 8090"
+
+auth:
+  type: custom
+  dummy:
+    password: 'foo'
+  admin:
+    users:
+    - admin
+  custom:
+    className: nativeauthenticator.NativeAuthenticator
+    config:
+      username_pattern: '^((?!-hub).)*$'

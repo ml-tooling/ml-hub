@@ -1,11 +1,29 @@
-FROM mltooling/ssh-proxy:0.1.5
+FROM mltooling/ssh-proxy:0.1.6
 
 WORKDIR /
 
 # Install Basics
 RUN \
    apt-get update && \
-   apt-get install -y build-essential libssl-dev zlib1g-dev && \
+   apt-get install -y --no-install-recommends \
+      build-essential libssl-dev zlib1g-dev \
+      git \
+      #python3 \
+      python3-dev \
+      #python3-pip \
+      python3-setuptools \
+      python3-wheel \
+      libssl-dev \
+      libcurl4-openssl-dev \
+      build-essential \
+      sqlite3 \
+      curl \
+      dnsutils \
+      $(bash -c 'if [[ $JUPYTERHUB_VERSION == "git"* ]]; then \
+        # workaround for https://bugs.launchpad.net/ubuntu/+source/nodejs/+bug/1794589
+        echo nodejs=8.10.0~dfsg-2ubuntu0.2 nodejs-dev=8.10.0~dfsg-2ubuntu0.2 npm; \
+      fi') \
+      && \
    clean-layer.sh
 
 # Install resty version of nginx
@@ -39,7 +57,7 @@ RUN \
 # Install nodejs & npm for JupyterHub's configurable-http-proxy
 RUN \
    apt-get update && \
-   apt-get install -y curl && \
+   #apt-get install -y curl && \
    curl -sL https://deb.nodesource.com/setup_10.x | bash - && \
    apt-get install -y nodejs && \
    clean-layer.sh
@@ -51,10 +69,10 @@ RUN \
    clean-layer.sh
 
 # Install git as needed for installing pip repos from git
-RUN \
-   apt-get update && \
-   apt-get install -y git && \
-   clean-layer.sh
+# RUN \
+#    apt-get update && \
+#    apt-get install -y git && \
+#    clean-layer.sh
 
 RUN \
    pip install --no-cache dockerspawner && \
@@ -98,4 +116,15 @@ ENV \
    SSH_PERMIT_TARGET_PORT=8091 \
    SSH_PERMIT_TARGET_HOST="workspace-*"
 
-ENTRYPOINT /bin/bash $_RESOURCES_PATH/docker-entrypoint.sh
+CMD /bin/bash $_RESOURCES_PATH/docker-entrypoint.sh
+
+ADD docker-res/kubernetes/z2jh.py /usr/local/lib/python3.6/dist-packages/z2jh.py
+ADD docker-res/kubernetes/cull_idle_servers.py /usr/local/bin/cull_idle_servers.py
+# Kubernetes Support
+ADD docker-res/kubernetes/requirements.txt /tmp/requirements.txt
+RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
+         -r /tmp/requirements.txt
+COPY docker-res/kubernetes/jupyterhub_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_config.py
+# Debug as required in helm chart
+COPY docker-res/kubernetes/jupyterhub_config.py /srv/jupyterhub_config.py
+COPY docker-res/kubernetes/jupyterhub_extra_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_extra_config.py
