@@ -27,6 +27,8 @@ c.JupyterHub.port = 8000
 # Persist hub data on volume mounted inside container
 # TODO: should really be persisted?
 data_dir = os.environ.get('DATA_VOLUME_CONTAINER', '/data')
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
 c.JupyterHub.cookie_secret_file = os.path.join(data_dir, 'jupyterhub_cookie_secret')
 c.JupyterHub.db_url = os.path.join(data_dir, 'jupyterhub.sqlite')
 c.JupyterHub.admin_access = True
