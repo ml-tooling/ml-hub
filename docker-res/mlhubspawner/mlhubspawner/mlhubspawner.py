@@ -27,6 +27,7 @@ INITIAL_CIDR_FIRST_OCTET = 172
 INITIAL_CIDR_SECOND_OCTET = 33
 INITIAL_CIDR = "{}.33.0.0/24".format(INITIAL_CIDR_FIRST_OCTET)
 
+MLHUB_NAME = os.getenv("MLHUB_NAME", "mlhub")
 
 def has_complete_network_information(network):
     """Convenient function to check whether the docker.Network object has all required properties.
@@ -77,22 +78,35 @@ class MLHubDockerSpawner(DockerSpawner):
         label_style = "width: 25%"
         input_style = "width: 75%"
         div_style = "margin-bottom: 16px"
+
+        default_image = getattr(self, "image", "mltooling/ml-workspace:latest")
+        default_image_parts = default_image.split(":")
+        default_image_gpu = default_image_parts[0]
+        if len(default_image_parts) == 2:
+            default_image_gpu = default_image_gpu + "-gpu:" + default_image_parts[1]
+        
+        # When GPus shall be used, change the default image to the default gpu image (if the user entered a different image, it is not changed), and show an info box
+        # reminding the user of inserting a GPU-leveraging docker image
+        gpu_input_listener = "if(event.srcElement.value !== ''){{$('#gpu-info-box').css('display', 'block'); if($('#image-name').val() === '{default_image}'){{$('#image-name').val('{default_image_gpu}');}}}}else{{$('#gpu-info-box').css('display', 'none'); if($('#image-name').val() === '{default_image_gpu}'){{$('#image-name').val('{default_image}');}}}}" \
+            .format(default_image=default_image,
+                default_image_gpu=default_image_gpu)
+        optional_label = "<span style=\"font-size: 12px; font-weight: 400;\">(optional)</span>"
         # template = super()._default_options_form()
         return """
             <div style="{div_style}">
                 <label style="{label_style}" for="image">Docker Image</label>
-                <input style="{input_style}" name="image" placeholder="e.g. mltooling/ml-workspace"></input>
+                <input style="{input_style}" name="image" id="image-name" value="{default_image}"></input>
             </div>
             <div style="{div_style}">
-                <label style="{label_style}" for="cpu_limit">Number of CPUs</label>
+                <label style="{label_style}" for="cpu_limit">Number of CPUs {optional_label}</label>
                 <input style="{input_style}" name="cpu_limit" placeholder="e.g. 8"></input>
             </div>
             <div style="{div_style}">
-                <label style="{label_style}" for="mem_limit" title="{description_memory_limit}">Memory Limit</label>
+                <label style="{label_style}" for="mem_limit" title="{description_memory_limit}">Memory Limit {optional_label}</label>
                 <input style="{input_style}" name="mem_limit" title="{description_memory_limit}" placeholder="e.g. 100mb, 8g, ..."></input>
             </div>
             <div style="{div_style}">
-                <label style="{label_style}" for="env" title="{description_env}">Environment Variables</label>
+                <label style="{label_style}" for="env" title="{description_env}">Environment Variables {optional_label}</label>
                 <textarea style="{input_style}" name="env" title="{description_env}" placeholder="FOO=BAR&#10;FOO2=BAR2"></textarea>
             </div>
             <div style="{div_style}">
@@ -100,17 +114,22 @@ class MLHubDockerSpawner(DockerSpawner):
                 <label style="font-weight: 400;" for="is_mount_volume">Mount named volume to /workspace?</label>
             </div>
             <div style="{div_style}">
-                <label style="{label_style}" for="days_to_live" title="{description_days_to_live}">Requested days to live</label>
+                <label style="{label_style}" for="days_to_live" title="{description_days_to_live}">Requested days to live {optional_label}</label>
                 <input style="{input_style}" name="days_to_live" title="{description_days_to_live}" placeholder="e.g. 3"></input>
             </div>
             <div style="{div_style}">
-                <label style="{label_style}" for="gpus" title="{description_gpus}">GPUs</label>
-                <input style="{input_style}" name="gpus" title="{description_gpus}" placeholder="e.g. all, 0, 1, 2, ..."></input>
+                <label style="{label_style}" for="gpus" title="{description_gpus}">GPUs {optional_label}</label>
+                <input style="{input_style}" name="gpus" title="{description_gpus}" placeholder="e.g. all, 0, 1, 2, ..." oninput="{gpu_input_listener}"></input>
+                <div style="background-color: #ffa000; padding: 8px; margin-top: 4px; display: none; {input_style}" id="gpu-info-box">When using GPUs, make sure to use a GPU-supporting Docker image!</div>
             </div>
         """.format(
             div_style=div_style,
             label_style=label_style,
             input_style=input_style,
+            default_image=default_image,
+            default_image_gpu=default_image_gpu,
+            optional_label=optional_label,
+            gpu_input_listener=gpu_input_listener,
             description_memory_limit=description_memory_limit,
             description_env=description_env,
             description_days_to_live=description_days_to_live,
@@ -148,7 +167,7 @@ class MLHubDockerSpawner(DockerSpawner):
         # Otherwise, the workspaces would have the old container id that does not exist anymore in such a case.
         hostname_regex = re.compile("http(s)?://([a-zA-Z0-9]+):[0-9]{3,5}.*")
         jupyterhub_api_url = env.get('JUPYTERHUB_API_URL')
-        mlhub_container_name = os.getenv("MLHUB_NAME", "mlhub")
+        mlhub_container_name = MLHUB_NAME
         if jupyterhub_api_url:
             hostname = hostname_regex.match(jupyterhub_api_url).group(2)
             env['JUPYTERHUB_API_URL'] = jupyterhub_api_url.replace(hostname, mlhub_container_name)
@@ -197,7 +216,8 @@ class MLHubDockerSpawner(DockerSpawner):
             self.volumes = {default_named_volume: "/workspace"}
 
         extra_create_kwargs = {}
-        extra_create_kwargs['labels'] = {}
+        # set default label 'origin' to know for sure which containers where started via the hub
+        extra_create_kwargs['labels'] = {"origin": MLHUB_NAME}
         if self.user_options.get('days_to_live'):
             days_to_live_in_seconds = int(self.user_options.get('days_to_live')) * 24 * 60 * 60 # days * hours_per_day * minutes_per_hour * seconds_per_minute
             expiration_timestamp = time.time() + days_to_live_in_seconds
@@ -226,7 +246,7 @@ class MLHubDockerSpawner(DockerSpawner):
             return
 
         try:
-            mlhub_container_id = os.getenv("HOSTNAME", "mlhub")
+            mlhub_container_id = os.getenv("HOSTNAME", MLHUB_NAME)
             created_network.connect(mlhub_container_id)
         except docker.errors.APIError as e:
             # In the case of an 403 error, JupyterHub is already in the network which is okay -> continue starting the new container
