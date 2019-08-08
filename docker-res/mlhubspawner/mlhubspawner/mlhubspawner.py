@@ -48,7 +48,6 @@ class MLHubDockerSpawner(DockerSpawner):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        print("Init Dockerspawner: {}".format(self.object_name))
         # Get the MLHub container name to be used as the DNS name for the spawned workspaces, so they can connect to the Hub even if the container is
         # removed and restarted
         client = self.highlevel_docker_client
@@ -57,16 +56,11 @@ class MLHubDockerSpawner(DockerSpawner):
 
         # Connect MLHub to the existing workspace networks (in case of removing / recreation). By this, the hub can connect to the existing
         # workspaces and does not have to restart them.
-        #networks = client.networks.list(names=[self.network_name])
         try:
             network = client.networks.get(self.network_name)
             self.connect_hub_to_network(network)
         except:
             pass
-
-        # from jupyterhub import orm
-        # print(self.orm_spawner.name)
-        # print("DEBUG: " + str(self.db.query(orm.Spawner).filter(orm.Spawner.name == self.orm_spawner.name).count()))
     
     @property
     def highlevel_docker_client(self):
@@ -167,7 +161,6 @@ class MLHubDockerSpawner(DockerSpawner):
 
     def options_from_form(self, formdata):
         """Extract the passed form data into the self.user_options variable."""
-        print("DEBUG: Executed options_from_form")
         options = {}
 
         options["image"] = formdata.get('image', [None])[0]
@@ -175,18 +168,6 @@ class MLHubDockerSpawner(DockerSpawner):
         options["mem_limit"] = formdata.get('mem_limit', [None])[0]
         options["mount_volume"] = formdata.get('mount_volume', [False])[0]
         options["days_to_live"] = formdata.get('days_to_live', [None])[0]
-        
-        # TODO: set value
-        # options["fresh_start"] = True
-        self.new_creating = True
-        print(hasattr(self, 'creating'))
-
-        # If the container is created newly (via OptionsForm), then remove an existing underlying Docker container in case it still exists
-        # (this can happen, when you delete a container via the Hub UI, then the underlying container is not removed)
-        if (hasattr(self, 'creating') and self.creating == True):
-        #    super().remove_object()
-            self.creating = False
-            #print("has self.creating")
 
         env = {}
         env_lines = formdata.get('env', [''])
@@ -198,6 +179,8 @@ class MLHubDockerSpawner(DockerSpawner):
         options['env'] = env
 
         options['gpus'] = formdata.get('gpus', [None])[0]
+
+        self.new_creating = True
 
         return options
 
@@ -232,7 +215,6 @@ class MLHubDockerSpawner(DockerSpawner):
     @gen.coroutine
     def start(self):
         """Set custom configuration during start before calling the super.start method of Dockerspawner"""
-        print("Spawn the container")
         if self.user_options.get('image'):
             self.image = self.user_options.get('image')
 
@@ -271,11 +253,7 @@ class MLHubDockerSpawner(DockerSpawner):
         self.extra_host_config.update(extra_host_config)
         self.extra_create_kwargs.update(extra_create_kwargs)
 
-        print(self.orm_spawner)
-        print(hasattr(self, 'new_creating'))
-        #self.db.refresh(self.orm_spawner)
-        #print(self.orm_spawner)
-        # set the remove flag to trigger the remove object logic in super class to delete the container if it already exists.
+        # Delete existing container when it is created via the options_form UI (to make sure that not an existing container is re-used when you actually want to create a new one)
         # reset the flag afterwards to prevent the container from being removed when just stopped
         if (hasattr(self, 'new_creating') and self.new_creating == True):
             self.remove = True
@@ -301,7 +279,6 @@ class MLHubDockerSpawner(DockerSpawner):
         
     @gen.coroutine
     def remove_object(self):
-        print("Remove container")
         # Clean up the network we created for the container when we started it
         # First, disconnect all containers from the network and then remove it.
         #network = self.highlevel_docker_client.networks.get(self.network_name)
@@ -397,7 +374,6 @@ class MLHubDockerSpawner(DockerSpawner):
 
     def connect_hub_to_network(self, network):
         try:
-            #mlhub_container_id = os.getenv("HOSTNAME", self.hub_name)
             network.connect(self.hub_name)
         except docker.errors.APIError as e:
             # In the case of an 403 error, JupyterHub is already in the network which is okay -> continue starting the new container
@@ -407,38 +383,3 @@ class MLHubDockerSpawner(DockerSpawner):
                 self.log.error(
                     "Could not connect mlhub to the network and, thus, cannot create the container.")
                 return
-
-
-# DEBUG
-    @gen.coroutine
-    def start_object(self):
-        print("Start container")
-        return super().start_object()
-
-    @gen.coroutine
-    def stop_object(self):
-        print("Stop container")
-        #time.sleep(10)
-        # print(self.user.spawners)
-        # user = self.user
-
-        # import threading
-        # def cb(f=None):
-        #     from jupyterhub import orm
-
-        #     if f and f.exception():
-        #         print("error!")
-        #     print(self._stop_future)
-        #     print(self.user.spawners)
-        #     print(self.orm_spawner.name)
-        #    # self.db.expire_all()
-        #     print(self.db.query(orm.Spawner).filter(orm.Spawner.name == self.orm_spawner.name).count())
-        #     time.sleep(10)
-        #    # self.db.expire_all()
-        #     print(self._stop_future)
-        #     print(self.user.spawners)
-        #     print(self.db.query(orm.Spawner).filter(orm.Spawner.name == self.orm_spawner.name).count())
-
-        # threading.Thread(target=cb).start()
-        #self._stop_future.add_done_callback(cb)
-        return super().stop_object()
