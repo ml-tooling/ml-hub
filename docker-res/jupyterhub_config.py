@@ -4,20 +4,6 @@ DockerSpawner configuration file for jupyterhub.
 
 import os
 
-def _get_path_to_library(module) -> str:
-        """
-        Get the path to a imported module. This way, the library can be found and loaded in unknown host environments.
-        # Arguments
-            module (module): Imported python module
-        # Returns
-            Full path to the provided module.
-        """
-        try:
-            root_package = module.__name__.split(".")[0]
-            return module.__file__.split(root_package)[0] + root_package
-        except Exception as e:
-            pass
-
 c = get_config()
 
 # User containers will access hub by container name on the Docker network
@@ -84,4 +70,4 @@ if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
     # if template_paths is not set yet in user_config, it is of type traitlets.config.loader.LazyConfigValue; in other words, it was not initialized yet
     if not isinstance(c.JupyterHub.template_paths, list):
         c.JupyterHub.template_paths = []
-    c.JupyterHub.template_paths.append("{}/templates/".format(_get_path_to_library(nativeauthenticator)))
+    c.JupyterHub.template_paths.append("{}/templates/".format(os.path.dirname(nativeauthenticator.__file__)))
