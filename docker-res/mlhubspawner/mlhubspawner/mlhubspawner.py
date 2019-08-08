@@ -48,10 +48,25 @@ class MLHubDockerSpawner(DockerSpawner):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        print("Init Dockerspawner: {}".format(self.object_name))
         # Get the MLHub container name to be used as the DNS name for the spawned workspaces, so they can connect to the Hub even if the container is
         # removed and restarted
         client = self.highlevel_docker_client
         self.hub_name = client.containers.list(filters={"id": socket.gethostname()})[0].name # TODO: set default to mlhub?
+        self.default_label = {"origin": self.hub_name}
+
+        # Connect MLHub to the existing workspace networks (in case of removing / recreation). By this, the hub can connect to the existing
+        # workspaces and does not have to restart them.
+        #networks = client.networks.list(names=[self.network_name])
+        try:
+            network = client.networks.get(self.network_name)
+            self.connect_hub_to_network(network)
+        except:
+            pass
+
+        # from jupyterhub import orm
+        # print(self.orm_spawner.name)
+        # print("DEBUG: " + str(self.db.query(orm.Spawner).filter(orm.Spawner.name == self.orm_spawner.name).count()))
     
     @property
     def highlevel_docker_client(self):
@@ -68,6 +83,13 @@ class MLHubDockerSpawner(DockerSpawner):
         kwargs.update(kwargs_from_env())
         kwargs.update(self.client_kwargs)
         return docker.DockerClient(**kwargs)
+
+    @property
+    def network_name(self):
+        """
+        self.network_name is used by DockerSpawner to connect the newly created container to the respective network
+        """
+        return self.object_name
     
     @default('options_form')
     def _options_form(self):
@@ -91,7 +113,7 @@ class MLHubDockerSpawner(DockerSpawner):
         default_image_gpu = default_image_parts[0]
         if len(default_image_parts) == 2:
             default_image_gpu = default_image_gpu + "-gpu:" + default_image_parts[1]
-        
+
         # When GPus shall be used, change the default image to the default gpu image (if the user entered a different image, it is not changed), and show an info box
         # reminding the user of inserting a GPU-leveraging docker image
         gpu_input_listener = "if(event.srcElement.value !== ''){{$('#gpu-info-box').css('display', 'block'); if($('#image-name').val() === '{default_image}'){{$('#image-name').val('{default_image_gpu}');}}}}else{{$('#gpu-info-box').css('display', 'none'); if($('#image-name').val() === '{default_image_gpu}'){{$('#image-name').val('{default_image}');}}}}" \
@@ -145,7 +167,7 @@ class MLHubDockerSpawner(DockerSpawner):
 
     def options_from_form(self, formdata):
         """Extract the passed form data into the self.user_options variable."""
-
+        print("DEBUG: Executed options_from_form")
         options = {}
 
         options["image"] = formdata.get('image', [None])[0]
@@ -153,6 +175,18 @@ class MLHubDockerSpawner(DockerSpawner):
         options["mem_limit"] = formdata.get('mem_limit', [None])[0]
         options["mount_volume"] = formdata.get('mount_volume', [False])[0]
         options["days_to_live"] = formdata.get('days_to_live', [None])[0]
+        
+        # TODO: set value
+        # options["fresh_start"] = True
+        self.new_creating = True
+        print(hasattr(self, 'creating'))
+
+        # If the container is created newly (via OptionsForm), then remove an existing underlying Docker container in case it still exists
+        # (this can happen, when you delete a container via the Hub UI, then the underlying container is not removed)
+        if (hasattr(self, 'creating') and self.creating == True):
+        #    super().remove_object()
+            self.creating = False
+            #print("has self.creating")
 
         env = {}
         env_lines = formdata.get('env', [''])
@@ -198,7 +232,7 @@ class MLHubDockerSpawner(DockerSpawner):
     @gen.coroutine
     def start(self):
         """Set custom configuration during start before calling the super.start method of Dockerspawner"""
-
+        print("Spawn the container")
         if self.user_options.get('image'):
             self.image = self.user_options.get('image')
 
@@ -223,7 +257,7 @@ class MLHubDockerSpawner(DockerSpawner):
 
         extra_create_kwargs = {}
         # set default label 'origin' to know for sure which containers where started via the hub
-        extra_create_kwargs['labels'] = {"origin": self.hub_name}
+        extra_create_kwargs['labels'] = self.default_label
         if self.user_options.get('days_to_live'):
             days_to_live_in_seconds = int(self.user_options.get('days_to_live')) * 24 * 60 * 60 # days * hours_per_day * minutes_per_hour * seconds_per_minute
             expiration_timestamp = time.time() + days_to_live_in_seconds
@@ -237,38 +271,58 @@ class MLHubDockerSpawner(DockerSpawner):
         self.extra_host_config.update(extra_host_config)
         self.extra_create_kwargs.update(extra_create_kwargs)
 
-        network_name = self.object_name
-        created_network = None
-
-        try:
-            created_network = self.create_network(network_name)
-            # set self.network_name to the name of the network so that JupyterHub connects the newly created container to the network
-            self.network_name = network_name
-        except:
-            self.log.error(
-                "Could not create the network {network_name} and, thus, cannot create the container."
-                    .format(network_name=network_name)
-            )
-            return
-
-        try:
-            mlhub_container_id = os.getenv("HOSTNAME", self.hub_name)
-            created_network.connect(mlhub_container_id)
-        except docker.errors.APIError as e:
-            # In the case of an 403 error, JupyterHub is already in the network which is okay -> continue starting the new container
-            # Example 403 error:
-            # 403 Client Error: Forbidden ("endpoint with name mlhub already exists in network jupyter-admin")
-            if e.status_code != 403:
-                self.log.error(
-                    "Could not connect mlhub to the network and, thus, cannot create the container.")
-                return
-
+        print(self.orm_spawner)
+        print(hasattr(self, 'new_creating'))
+        #self.db.refresh(self.orm_spawner)
+        #print(self.orm_spawner)
         # set the remove flag to trigger the remove object logic in super class to delete the container if it already exists.
         # reset the flag afterwards to prevent the container from being removed when just stopped
-        self.remvove = True
+        if (hasattr(self, 'new_creating') and self.new_creating == True):
+            self.remove = True
         res = yield super().start()
         self.remove = False
         return res
+
+    @gen.coroutine
+    def create_object(self):
+        created_network = None
+        try:
+            created_network = self.create_network(self.network_name)
+            self.connect_hub_to_network(created_network)
+        except:
+            self.log.error(
+                "Could not create the network {network_name} and, thus, cannot create the container."
+                    .format(network_name=self.network_name)
+            )
+            return
+        
+        obj = yield super().create_object()
+        return obj
+        
+    @gen.coroutine
+    def remove_object(self):
+        print("Remove container")
+        # Clean up the network we created for the container when we started it
+        # First, disconnect all containers from the network and then remove it.
+        #network = self.highlevel_docker_client.networks.get(self.network_name)
+        networks = self.highlevel_docker_client.networks.list(names=[self.network_name])
+        if len(networks) == 1:
+            network = networks[0]
+            # network.containers / network.attrs do not list any containers while the cli does => looks like bug in Python client
+            try:
+                network.disconnect(self.hub_name)
+            except:
+                pass
+            
+            try:
+                network.disconnect(self.object_name)
+            except:
+                pass
+            
+            network.remove()
+        
+        yield super().remove_object()
+
 
     def create_network(self, name):
         """Create a new network to put the new container into it. 
@@ -317,7 +371,7 @@ class MLHubDockerSpawner(DockerSpawner):
         ipam_pool = docker.types.IPAMPool(subnet=next_cidr.exploded,
                                           gateway=(next_cidr.network_address + 1).exploded)
         ipam_config = docker.types.IPAMConfig(pool_configs=[ipam_pool])
-        return client.networks.create(name, ipam=ipam_config)
+        return client.networks.create(name, ipam=ipam_config, labels=self.default_label)
 
     def get_lifetime_timestamp(self):
         if self.container_id is None or self.container_id == '':
@@ -340,3 +394,51 @@ class MLHubDockerSpawner(DockerSpawner):
             meta_string = "(Expires: {}d)".format(difference_in_days)
 
         return meta_string
+
+    def connect_hub_to_network(self, network):
+        try:
+            #mlhub_container_id = os.getenv("HOSTNAME", self.hub_name)
+            network.connect(self.hub_name)
+        except docker.errors.APIError as e:
+            # In the case of an 403 error, JupyterHub is already in the network which is okay -> continue starting the new container
+            # Example 403 error:
+            # 403 Client Error: Forbidden ("endpoint with name mlhub already exists in network jupyter-admin")
+            if e.status_code != 403:
+                self.log.error(
+                    "Could not connect mlhub to the network and, thus, cannot create the container.")
+                return
+
+
+# DEBUG
+    @gen.coroutine
+    def start_object(self):
+        print("Start container")
+        return super().start_object()
+
+    @gen.coroutine
+    def stop_object(self):
+        print("Stop container")
+        #time.sleep(10)
+        # print(self.user.spawners)
+        # user = self.user
+
+        # import threading
+        # def cb(f=None):
+        #     from jupyterhub import orm
+
+        #     if f and f.exception():
+        #         print("error!")
+        #     print(self._stop_future)
+        #     print(self.user.spawners)
+        #     print(self.orm_spawner.name)
+        #    # self.db.expire_all()
+        #     print(self.db.query(orm.Spawner).filter(orm.Spawner.name == self.orm_spawner.name).count())
+        #     time.sleep(10)
+        #    # self.db.expire_all()
+        #     print(self._stop_future)
+        #     print(self.user.spawners)
+        #     print(self.db.query(orm.Spawner).filter(orm.Spawner.name == self.orm_spawner.name).count())
+
+        # threading.Thread(target=cb).start()
+        #self._stop_future.add_done_callback(cb)
+        return super().stop_object()

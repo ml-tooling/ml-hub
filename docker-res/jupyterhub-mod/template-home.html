@@ -91,7 +91,7 @@
               anyways and just the old container is restarted with the old options. Hence, trigger the start command and then switch to the spawn page of the container.-->
           <!-- href="{{ base_url }}spawn/{{ user.name }}/{{ spawner.name }}" -->
           <a role="button" class="start-server btn btn-xs btn-primary {% if spawner.active %} hidden{% endif %}" id="start-{{ spawner.name }}"
-            onclick="fetch('/hub/spawn/{{ user.name }}/{{ spawner.name }}', {'method': 'POST'}).then(() => {window.location.href = '/user/{{ user.name }}/{{ spawner.name }}';})"
+            onclick="fetch('/hub/api/users/{{ user.name }}/servers/{{ spawner.name }}', {'method': 'POST'}).then(() => {window.location.href = '/user/{{ user.name }}/{{ spawner.name }}';})"
           > 
             start
           </a>
