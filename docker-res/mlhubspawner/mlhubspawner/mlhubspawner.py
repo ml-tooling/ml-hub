@@ -166,7 +166,7 @@ class MLHubDockerSpawner(DockerSpawner):
         options["image"] = formdata.get('image', [None])[0]
         options["cpu_limit"] = formdata.get('cpu_limit', [None])[0]
         options["mem_limit"] = formdata.get('mem_limit', [None])[0]
-        options["mount_volume"] = formdata.get('mount_volume', [False])[0]
+        options["is_mount_volume"] = formdata.get('is_mount_volume', [False])[0]
         options["days_to_live"] = formdata.get('days_to_live', [None])[0]
 
         env = {}
@@ -233,9 +233,8 @@ class MLHubDockerSpawner(DockerSpawner):
                 'mem_limit')
 
         if self.user_options.get('is_mount_volume') == 'on':
-            server_name = getattr(self, "name", "")
-            default_named_volume = 'jupyterhub-user-{username}' + server_name
-            self.volumes = {default_named_volume: "/workspace"}
+            # {username} and {servername} will be automatically replaced by DockerSpawner with the right values as in template_namespace
+            self.volumes = {'jhub-user-{username}{servername}': "/workspace"}
 
         extra_create_kwargs = {}
         # set default label 'origin' to know for sure which containers where started via the hub
