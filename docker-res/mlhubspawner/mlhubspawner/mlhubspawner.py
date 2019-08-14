@@ -15,7 +15,7 @@ from docker.utils import kwargs_from_env
 import os
 import socket
 import ipaddress
-from traitlets import (default)
+from traitlets import default, Unicode, List
 from tornado import gen
 import multiprocessing
 import time, datetime
@@ -44,6 +44,13 @@ def has_complete_network_information(network):
 
 class MLHubDockerSpawner(DockerSpawner):
     """Provides the possibility to spawn docker containers with specific options, such as resource limits (CPU and Memory), Environment Variables, ..."""
+
+    workspace_images = List(
+        trait = Unicode(),
+        default_value = [],
+        config = True,
+        help = "Pre-defined workspace images"
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -83,7 +90,8 @@ class MLHubDockerSpawner(DockerSpawner):
         """
         self.network_name is used by DockerSpawner to connect the newly created container to the respective network
         """
-        return self.object_name
+        #return self.object_name
+        return "{}-{}".format(self.hub_name, self.user.name)
     
     @default('options_form')
     def _options_form(self):
@@ -107,18 +115,53 @@ class MLHubDockerSpawner(DockerSpawner):
         default_image_gpu = default_image_parts[0]
         if len(default_image_parts) == 2:
             default_image_gpu = default_image_gpu + "-gpu:" + default_image_parts[1]
+        if default_image not in self.workspace_images:
+            self.workspace_images.append(default_image)
+        if default_image_gpu not in self.workspace_images:
+            self.workspace_images.append(default_image_gpu)
 
         # When GPus shall be used, change the default image to the default gpu image (if the user entered a different image, it is not changed), and show an info box
         # reminding the user of inserting a GPU-leveraging docker image
-        gpu_input_listener = "if(event.srcElement.value !== ''){{$('#gpu-info-box').css('display', 'block'); if($('#image-name').val() === '{default_image}'){{$('#image-name').val('{default_image_gpu}');}}}}else{{$('#gpu-info-box').css('display', 'none'); if($('#image-name').val() === '{default_image_gpu}'){{$('#image-name').val('{default_image}');}}}}" \
-            .format(default_image=default_image,
-                default_image_gpu=default_image_gpu)
+        show_gpu_info_box = "$('#gpu-info-box').css('display', 'block');"
+        hide_gpu_info_box = "$('#gpu-info-box').css('display', 'none');"
+        use_cpu_image = "if($('#image-name').val() === '{default_image}'){{$('#image-name').val('{default_image_gpu}');}}".format(default_image=default_image, default_image_gpu=default_image_gpu)
+        use_gpu_image = "if($('#image-name').val() === '{default_image_gpu}'){{$('#image-name').val('{default_image}');}}".format(default_image=default_image, default_image_gpu=default_image_gpu)
+        gpu_input_listener = "if(event.srcElement.value !== ''){{ {show_gpu_info_box} {use_cpu_image} }}else{{ {hide_gpu_info_box} {use_gpu_image} }}" \
+            .format(
+                show_gpu_info_box=show_gpu_info_box, 
+                hide_gpu_info_box=hide_gpu_info_box, 
+                use_cpu_image="", #use_cpu_image,
+                use_gpu_image="" #use_gpu_image
+        )
+
+        # Show / hide custom image input field when checkbox is clicked
+        custom_image_listener = "if(event.target.checked){ $('#image-name').css('display', 'block'); $('.defined-images').css('display', 'none'); }else{ $('#image-name').css('display', 'none'); $('.defined-images').css('display', 'block'); }"
+
+        # Create drop down menu with pre-defined custom images
+        image_option_template = """
+            <option value="{image}">{image}</option>
+        """
+        image_options = ""
+        for image in self.workspace_images:
+            image_options += image_option_template.format(image=image)
+
+        images_template = """
+            <select name="defined_image" class="defined-images" required autofocus>{image_options}</select>
+        """.format(image_options=image_options)
+
         optional_label = "<span style=\"font-size: 12px; font-weight: 400;\">(optional)</span>"
         # template = super()._default_options_form()
         return """
             <div style="{div_style}">
                 <label style="{label_style}" for="image">Docker Image</label>
-                <input style="{input_style}" name="image" id="image-name" value="{default_image}"></input>
+                <div name="image">
+                    <div style="margin-bottom: 4px">
+                        <input style="margin-right: 8px;" type="checkbox" name="is_custom_image" onchange="{custom_image_listener}"></input>
+                        <label style="font-weight: 400;" for="is_custom_image">Custom Image</label>
+                    </div>
+                    <input style="{input_style}; display: none;" name="custom_image" id="image-name" class="custom-image" placeholder="Custom Image"></input>
+                    {images_template}
+                </div>
             </div>
             <div style="{div_style}">
                 <label style="{label_style}" for="cpu_limit">Number of CPUs {optional_label}</label>
@@ -151,6 +194,8 @@ class MLHubDockerSpawner(DockerSpawner):
             input_style=input_style,
             default_image=default_image,
             default_image_gpu=default_image_gpu,
+            images_template=images_template,
+            custom_image_listener=custom_image_listener,
             optional_label=optional_label,
             gpu_input_listener=gpu_input_listener,
             description_memory_limit=description_memory_limit,
@@ -163,7 +208,11 @@ class MLHubDockerSpawner(DockerSpawner):
         """Extract the passed form data into the self.user_options variable."""
         options = {}
 
-        options["image"] = formdata.get('image', [None])[0]
+        if formdata.get('is_custom_image', [False])[0] == True:
+            options["image"] = formdata.get('custom_image', [None])[0]
+        else:
+            options["image"] = formdata.get('defined_image', [None])[0]
+
         options["cpu_limit"] = formdata.get('cpu_limit', [None])[0]
         options["mem_limit"] = formdata.get('mem_limit', [None])[0]
         options["is_mount_volume"] = formdata.get('is_mount_volume', [False])[0]
