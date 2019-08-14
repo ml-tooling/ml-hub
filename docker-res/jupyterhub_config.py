@@ -25,6 +25,9 @@ c.Spawner.port = 8090
 # Set default environment variables used by our ml-workspace container
 c.Spawner.environment = {"AUTHENTICATE_VIA_JUPYTER": "true", "SHUTDOWN_INACTIVE_KERNELS": "true"}
 
+# Workaround to prevent api problems
+c.Spawner.will_resume = True
+
 # --- Spawner-specific ----
 c.JupyterHub.spawner_class = 'mlhubspawner.MLHubDockerSpawner' # override in your config if you want to have a different spawner. If it is the or inherits from DockerSpawner, the c.DockerSpawner config can have an effect.
 
@@ -40,9 +43,8 @@ c.DockerSpawner.name_template = '{prefix}-{username}-hub{servername}' # override
 
 # Don't remove containers once they are stopped - persist state
 c.DockerSpawner.remove_containers = False
-# Workaround to prevent api problems
-c.DockerSpawner.will_resume = True
 
+c.DockerSpawner.start_timeout = 600 # should remove errors related to pulling Docker images (see https://github.com/jupyterhub/dockerspawner/issues/293)
 c.DockerSpawner.http_timeout = 60
 
 # --- Authenticator ---
