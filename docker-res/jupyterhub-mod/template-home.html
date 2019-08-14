@@ -135,6 +135,28 @@ $(document).ready(() => {
             select.insertBefore(".new-server-name");
             // some UI sugar
             $('<span> / </span>').insertBefore(".new-server-name");
+
+
+            // show the other user's servers
+            // TODO: duplicated to above: merge when decided to keep it
+            $.each(res, function(i, user) {
+              // Don't show the user's own servers as they are already loaded above
+              if (user.name === "{{ user.name }}") {
+                return true; // is the same in $.each as continue in a for-statement
+              }
+
+              $.each(user.servers, function(j, server) {
+                let name = user.name + "/" + server.name;
+                let userServerRow = $("<tr>", {class: "home-server-row", "data-server-name": name});
+                $('<td>').html(name).appendTo(userServerRow);
+                $('<td>').append(
+                  $('<a>', {class: "server-link", href: server.url}).html(server.url)
+                ).appendTo(userServerRow);
+                userServerRow.append($('<td>')).append($('<td>'));
+                $('.server-table').find('tbody').append(userServerRow);
+              });
+            });
+
         }).catch(() => {});
 });
 </script>
