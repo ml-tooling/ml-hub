@@ -114,10 +114,16 @@ class MLHubDockerSpawner(DockerSpawner):
         div_style = "margin-bottom: 16px"
 
         default_image = getattr(self, "image", "mltooling/ml-workspace:latest")
-        default_image_parts = default_image.split(":")
-        default_image_gpu = default_image_parts[0]
+        # take the last part of the full-qualified image name; e.g. docker.wdf.sap.corp:51150/com.sap.sapai.studio/studio-workspace:latest -> studio-workspace:latest 
+        image_name_and_tag = default_image.split("/")[-1]
+        # split the name and the tag; e.g. studio-workspace:latest -> [studio-workspace, latest]
+        default_image_parts = image_name_and_tag.split(":")
+        default_image_gpu = default_image_parts[0] + "-gpu"
         if len(default_image_parts) == 2:
-            default_image_gpu = default_image_gpu + "-gpu:" + default_image_parts[1]
+            default_image_gpu = default_image_gpu + ":" + default_image_parts[1]
+        # replace the image name in the full-qualified name with the gpu one; 
+        # e.g. docker.wdf.sap.corp:51150/com.sap.sapai.studio/studio-workspace:latest -> docker.wdf.sap.corp:51150/com.sap.sapai.studio/studio-workspace-gpu:latest
+        default_image_gpu = default_image.replace(image_name_and_tag, default_image_gpu)
         if default_image not in self.workspace_images:
             self.workspace_images.append(default_image)
         if default_image_gpu not in self.workspace_images:
