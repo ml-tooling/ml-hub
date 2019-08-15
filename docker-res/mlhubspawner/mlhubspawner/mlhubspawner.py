@@ -28,6 +28,9 @@ INITIAL_CIDR_FIRST_OCTET = 172
 INITIAL_CIDR_SECOND_OCTET = 33
 INITIAL_CIDR = "{}.33.0.0/24".format(INITIAL_CIDR_FIRST_OCTET)
 
+LABEL_EXPIRATION_TIMESTAMP = 'expiration_timestamp_seconds'
+LABEL_NVIDIA_VISIBLE_DEVICES = 'nvidia_visible_devices'
+
 def has_complete_network_information(network):
     """Convenient function to check whether the docker.Network object has all required properties.
     
@@ -291,12 +294,13 @@ class MLHubDockerSpawner(DockerSpawner):
         if self.user_options.get('days_to_live'):
             days_to_live_in_seconds = int(self.user_options.get('days_to_live')) * 24 * 60 * 60 # days * hours_per_day * minutes_per_hour * seconds_per_minute
             expiration_timestamp = time.time() + days_to_live_in_seconds
-            extra_create_kwargs['labels']['expiration_timestamp_seconds'] =  str(expiration_timestamp)
+            extra_create_kwargs['labels'][LABEL_EXPIRATION_TIMESTAMP] =  str(expiration_timestamp)
         else:
-            extra_create_kwargs['labels']['expiration_timestamp_seconds'] = str(0)
+            extra_create_kwargs['labels'][LABEL_EXPIRATION_TIMESTAMP] = str(0)
 
         if self.user_options.get('gpus'):
             extra_host_config['runtime'] = "nvidia"
+            extra_create_kwargs['labels'][LABEL_NVIDIA_VISIBLE_DEVICES] = self.user_options.get('gpus')
 
         self.extra_host_config.update(extra_host_config)
         self.extra_create_kwargs.update(extra_create_kwargs)
@@ -397,29 +401,7 @@ class MLHubDockerSpawner(DockerSpawner):
                                           gateway=(next_cidr.network_address + 1).exploded)
         ipam_config = docker.types.IPAMConfig(pool_configs=[ipam_pool])
         return client.networks.create(name, ipam=ipam_config, labels=self.default_label)
-
-    def get_lifetime_timestamp(self):
-        if self.container_id is None or self.container_id == '':
-            return None
-        
-        try:
-            container_labels = self.highlevel_docker_client.containers.get(self.container_id).labels
-            expiration_timestamp_seconds = float(container_labels.get('expiration_timestamp_seconds', '0'))
-            if expiration_timestamp_seconds == 0:
-                return None
-            return expiration_timestamp_seconds
-        except:
-            return None
     
-    def get_container_metadata(self):
-        meta_string = ""
-        lifetime_timestamp = self.get_lifetime_timestamp()
-        if lifetime_timestamp is not None:
-            difference_in_days = math.ceil((lifetime_timestamp - time.time())/60/60/24)
-            meta_string = "(Expires: {}d)".format(difference_in_days)
-
-        return meta_string
-
     def connect_hub_to_network(self, network):
         try:
             network.connect(self.hub_name)
@@ -431,3 +413,29 @@ class MLHubDockerSpawner(DockerSpawner):
                 self.log.error(
                     "Could not connect mlhub to the network and, thus, cannot create the container.")
                 return
+    
+    def get_container_metadata(self) -> str:
+        if self.container_id is None or self.container_id == '':
+            return ""
+
+        meta_information = []
+        container_labels = self.get_labels()
+        lifetime_timestamp = self.get_lifetime_timestamp(container_labels)
+        if lifetime_timestamp != 0:
+            difference_in_days = math.ceil((lifetime_timestamp - time.time())/60/60/24)
+            meta_information.append("Expires: {}d".format(difference_in_days))
+        
+        nvidia_visible_devices = container_labels.get(LABEL_NVIDIA_VISIBLE_DEVICES, "")
+        if nvidia_visible_devices != "":
+            meta_information.append("GPUs: {}".format(nvidia_visible_devices))
+        
+        return "({})".format(", ".join(meta_information))
+
+    def get_lifetime_timestamp(self, labels: dict) -> float:
+        return float(labels.get(LABEL_EXPIRATION_TIMESTAMP, '0'))
+
+    def get_labels(self) -> dict:
+        try:
+            return self.highlevel_docker_client.containers.get(self.container_id).labels
+        except:
+            return {}
