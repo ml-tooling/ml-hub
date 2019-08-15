@@ -4,20 +4,6 @@ DockerSpawner configuration file for jupyterhub.
 
 import os
 
-def _get_path_to_library(module) -> str:
-        """
-        Get the path to a imported module. This way, the library can be found and loaded in unknown host environments.
-        # Arguments
-            module (module): Imported python module
-        # Returns
-            Full path to the provided module.
-        """
-        try:
-            root_package = module.__name__.split(".")[0]
-            return module.__file__.split(root_package)[0] + root_package
-        except Exception as e:
-            pass
-
 c = get_config()
 
 # User containers will access hub by container name on the Docker network
@@ -27,6 +13,8 @@ c.JupyterHub.port = 8000
 # Persist hub data on volume mounted inside container
 # TODO: should really be persisted?
 data_dir = os.environ.get('DATA_VOLUME_CONTAINER', '/data')
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
 c.JupyterHub.cookie_secret_file = os.path.join(data_dir, 'jupyterhub_cookie_secret')
 c.JupyterHub.db_url = os.path.join(data_dir, 'jupyterhub.sqlite')
 c.JupyterHub.admin_access = True
@@ -36,6 +24,9 @@ c.Spawner.port = 8090
 
 # Set default environment variables used by our ml-workspace container
 c.Spawner.environment = {"AUTHENTICATE_VIA_JUPYTER": "true", "SHUTDOWN_INACTIVE_KERNELS": "true"}
+
+# Workaround to prevent api problems
+c.Spawner.will_resume = True
 
 # --- Spawner-specific ----
 c.JupyterHub.spawner_class = 'mlhubspawner.MLHubDockerSpawner' # override in your config if you want to have a different spawner. If it is the or inherits from DockerSpawner, the c.DockerSpawner config can have an effect.
@@ -47,14 +38,13 @@ c.DockerSpawner.notebook_dir = '/workspace'
 c.DockerSpawner.use_internal_ip = True
 c.DockerSpawner.extra_host_config = { 'shm_size': '256m' }
 
-c.DockerSpawner.prefix = 'workspace' 
+c.DockerSpawner.prefix = 'ws' 
 c.DockerSpawner.name_template = '{prefix}-{username}-hub{servername}' # override in your config when you want to have a different name schema. Also consider changing c.Authenticator.username_pattern and check the environment variables to permit ssh connection
 
 # Don't remove containers once they are stopped - persist state
 c.DockerSpawner.remove_containers = False
-# Workaround to prevent api problems
-c.DockerSpawner.will_resume = True
 
+c.DockerSpawner.start_timeout = 600 # should remove errors related to pulling Docker images (see https://github.com/jupyterhub/dockerspawner/issues/293)
 c.DockerSpawner.http_timeout = 60
 
 # --- Authenticator ---
@@ -82,4 +72,4 @@ if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
     # if template_paths is not set yet in user_config, it is of type traitlets.config.loader.LazyConfigValue; in other words, it was not initialized yet
     if not isinstance(c.JupyterHub.template_paths, list):
         c.JupyterHub.template_paths = []
-    c.JupyterHub.template_paths.append("{}/templates/".format(_get_path_to_library(nativeauthenticator)))
+    c.JupyterHub.template_paths.append("{}/templates/".format(os.path.dirname(nativeauthenticator.__file__)))

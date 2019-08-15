@@ -13,8 +13,9 @@ import docker.errors
 from docker.utils import kwargs_from_env
 
 import os
+import socket
 import ipaddress
-from traitlets import (default)
+from traitlets import default, Unicode, List
 from tornado import gen
 import multiprocessing
 import time, datetime
@@ -27,6 +28,8 @@ INITIAL_CIDR_FIRST_OCTET = 172
 INITIAL_CIDR_SECOND_OCTET = 33
 INITIAL_CIDR = "{}.33.0.0/24".format(INITIAL_CIDR_FIRST_OCTET)
 
+LABEL_EXPIRATION_TIMESTAMP = 'expiration_timestamp_seconds'
+LABEL_NVIDIA_VISIBLE_DEVICES = 'nvidia_visible_devices'
 
 def has_complete_network_information(network):
     """Convenient function to check whether the docker.Network object has all required properties.
@@ -45,6 +48,30 @@ def has_complete_network_information(network):
 class MLHubDockerSpawner(DockerSpawner):
     """Provides the possibility to spawn docker containers with specific options, such as resource limits (CPU and Memory), Environment Variables, ..."""
 
+    workspace_images = List(
+        trait = Unicode(),
+        default_value = [],
+        config = True,
+        help = "Pre-defined workspace images"
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Get the MLHub container name to be used as the DNS name for the spawned workspaces, so they can connect to the Hub even if the container is
+        # removed and restarted
+        client = self.highlevel_docker_client
+        self.hub_name = client.containers.list(filters={"id": socket.gethostname()})[0].name # TODO: set default to mlhub?
+        self.default_label = {"origin": self.hub_name}
+
+        # Connect MLHub to the existing workspace networks (in case of removing / recreation). By this, the hub can connect to the existing
+        # workspaces and does not have to restart them.
+        try:
+            network = client.networks.get(self.network_name)
+            self.connect_hub_to_network(network)
+        except:
+            pass
+    
     @property
     def highlevel_docker_client(self):
         """Create a highlevel docker client as 'self.client' is the low-level API client.
@@ -60,6 +87,14 @@ class MLHubDockerSpawner(DockerSpawner):
         kwargs.update(kwargs_from_env())
         kwargs.update(self.client_kwargs)
         return docker.DockerClient(**kwargs)
+
+    @property
+    def network_name(self):
+        """
+        self.network_name is used by DockerSpawner to connect the newly created container to the respective network
+        """
+        #return self.object_name
+        return "{}-{}".format(self.hub_name, self.user.name)
     
     @default('options_form')
     def _options_form(self):
@@ -77,22 +112,76 @@ class MLHubDockerSpawner(DockerSpawner):
         label_style = "width: 25%"
         input_style = "width: 75%"
         div_style = "margin-bottom: 16px"
+
+        default_image = getattr(self, "image", "mltooling/ml-workspace:latest")
+        # take the last part of the full-qualified image name; e.g. docker.wdf.sap.corp:51150/com.sap.sapai.studio/studio-workspace:latest -> studio-workspace:latest 
+        image_name_and_tag = default_image.split("/")[-1]
+        # split the name and the tag; e.g. studio-workspace:latest -> [studio-workspace, latest]
+        default_image_parts = image_name_and_tag.split(":")
+        default_image_gpu = default_image_parts[0] + "-gpu"
+        if len(default_image_parts) == 2:
+            default_image_gpu = default_image_gpu + ":" + default_image_parts[1]
+        # replace the image name in the full-qualified name with the gpu one; 
+        # e.g. docker.wdf.sap.corp:51150/com.sap.sapai.studio/studio-workspace:latest -> docker.wdf.sap.corp:51150/com.sap.sapai.studio/studio-workspace-gpu:latest
+        default_image_gpu = default_image.replace(image_name_and_tag, default_image_gpu)
+        if default_image not in self.workspace_images:
+            self.workspace_images.append(default_image)
+        if default_image_gpu not in self.workspace_images:
+            self.workspace_images.append(default_image_gpu)
+
+        # When GPus shall be used, change the default image to the default gpu image (if the user entered a different image, it is not changed), and show an info box
+        # reminding the user of inserting a GPU-leveraging docker image
+        show_gpu_info_box = "$('#gpu-info-box').css('display', 'block');"
+        hide_gpu_info_box = "$('#gpu-info-box').css('display', 'none');"
+        use_cpu_image = "if($('#image-name').val() === '{default_image}'){{$('#image-name').val('{default_image_gpu}');}}".format(default_image=default_image, default_image_gpu=default_image_gpu)
+        use_gpu_image = "if($('#image-name').val() === '{default_image_gpu}'){{$('#image-name').val('{default_image}');}}".format(default_image=default_image, default_image_gpu=default_image_gpu)
+        gpu_input_listener = "if(event.srcElement.value !== ''){{ {show_gpu_info_box} {use_cpu_image} }}else{{ {hide_gpu_info_box} {use_gpu_image} }}" \
+            .format(
+                show_gpu_info_box=show_gpu_info_box, 
+                hide_gpu_info_box=hide_gpu_info_box, 
+                use_cpu_image="", #use_cpu_image,
+                use_gpu_image="" #use_gpu_image
+        )
+
+        # Show / hide custom image input field when checkbox is clicked
+        custom_image_listener = "if(event.target.checked){ $('#image-name').css('display', 'block'); $('.defined-images').css('display', 'none'); }else{ $('#image-name').css('display', 'none'); $('.defined-images').css('display', 'block'); }"
+
+        # Create drop down menu with pre-defined custom images
+        image_option_template = """
+            <option value="{image}">{image}</option>
+        """
+        image_options = ""
+        for image in self.workspace_images:
+            image_options += image_option_template.format(image=image)
+
+        images_template = """
+            <select name="defined_image" class="defined-images" required autofocus>{image_options}</select>
+        """.format(image_options=image_options)
+
+        optional_label = "<span style=\"font-size: 12px; font-weight: 400;\">(optional)</span>"
         # template = super()._default_options_form()
         return """
             <div style="{div_style}">
                 <label style="{label_style}" for="image">Docker Image</label>
-                <input style="{input_style}" name="image" placeholder="e.g. mltooling/ml-workspace"></input>
+                <div name="image">
+                    <div style="margin-bottom: 4px">
+                        <input style="margin-right: 8px;" type="checkbox" name="is_custom_image" onchange="{custom_image_listener}"></input>
+                        <label style="font-weight: 400;" for="is_custom_image">Custom Image</label>
+                    </div>
+                    <input style="{input_style}; display: none;" name="custom_image" id="image-name" class="custom-image" placeholder="Custom Image"></input>
+                    {images_template}
+                </div>
             </div>
             <div style="{div_style}">
-                <label style="{label_style}" for="cpu_limit">Number of CPUs</label>
+                <label style="{label_style}" for="cpu_limit">Number of CPUs {optional_label}</label>
                 <input style="{input_style}" name="cpu_limit" placeholder="e.g. 8"></input>
             </div>
             <div style="{div_style}">
-                <label style="{label_style}" for="mem_limit" title="{description_memory_limit}">Memory Limit</label>
+                <label style="{label_style}" for="mem_limit" title="{description_memory_limit}">Memory Limit {optional_label}</label>
                 <input style="{input_style}" name="mem_limit" title="{description_memory_limit}" placeholder="e.g. 100mb, 8g, ..."></input>
             </div>
             <div style="{div_style}">
-                <label style="{label_style}" for="env" title="{description_env}">Environment Variables</label>
+                <label style="{label_style}" for="env" title="{description_env}">Environment Variables {optional_label}</label>
                 <textarea style="{input_style}" name="env" title="{description_env}" placeholder="FOO=BAR&#10;FOO2=BAR2"></textarea>
             </div>
             <div style="{div_style}">
@@ -100,17 +189,24 @@ class MLHubDockerSpawner(DockerSpawner):
                 <label style="font-weight: 400;" for="is_mount_volume">Mount named volume to /workspace?</label>
             </div>
             <div style="{div_style}">
-                <label style="{label_style}" for="days_to_live" title="{description_days_to_live}">Requested days to live</label>
+                <label style="{label_style}" for="days_to_live" title="{description_days_to_live}">Days to live {optional_label}</label>
                 <input style="{input_style}" name="days_to_live" title="{description_days_to_live}" placeholder="e.g. 3"></input>
             </div>
             <div style="{div_style}">
-                <label style="{label_style}" for="gpus" title="{description_gpus}">GPUs</label>
-                <input style="{input_style}" name="gpus" title="{description_gpus}" placeholder="e.g. all, 0, 1, 2, ..."></input>
+                <label style="{label_style}" for="gpus" title="{description_gpus}">GPUs {optional_label}</label>
+                <input style="{input_style}" name="gpus" title="{description_gpus}" placeholder="e.g. all, 0, 1, 2, ..." oninput="{gpu_input_listener}"></input>
+                <div style="background-color: #ffa000; padding: 8px; margin-top: 4px; display: none; {input_style}" id="gpu-info-box">When using GPUs, make sure to use a GPU-supporting Docker image!</div>
             </div>
         """.format(
             div_style=div_style,
             label_style=label_style,
             input_style=input_style,
+            default_image=default_image,
+            default_image_gpu=default_image_gpu,
+            images_template=images_template,
+            custom_image_listener=custom_image_listener,
+            optional_label=optional_label,
+            gpu_input_listener=gpu_input_listener,
             description_memory_limit=description_memory_limit,
             description_env=description_env,
             description_days_to_live=description_days_to_live,
@@ -119,13 +215,16 @@ class MLHubDockerSpawner(DockerSpawner):
 
     def options_from_form(self, formdata):
         """Extract the passed form data into the self.user_options variable."""
-
         options = {}
 
-        options["image"] = formdata.get('image', [None])[0]
+        if formdata.get('is_custom_image', ["off"])[0] == "on":
+            options["image"] = formdata.get('custom_image', [None])[0]
+        else:
+            options["image"] = formdata.get('defined_image', [None])[0]
+
         options["cpu_limit"] = formdata.get('cpu_limit', [None])[0]
         options["mem_limit"] = formdata.get('mem_limit', [None])[0]
-        options["mount_volume"] = formdata.get('mount_volume', [False])[0]
+        options["is_mount_volume"] = formdata.get('is_mount_volume', ["off"])[0]
         options["days_to_live"] = formdata.get('days_to_live', [None])[0]
 
         env = {}
@@ -139,6 +238,8 @@ class MLHubDockerSpawner(DockerSpawner):
 
         options['gpus'] = formdata.get('gpus', [None])[0]
 
+        self.new_creating = True
+
         return options
 
     def get_env(self):
@@ -148,14 +249,13 @@ class MLHubDockerSpawner(DockerSpawner):
         # Otherwise, the workspaces would have the old container id that does not exist anymore in such a case.
         hostname_regex = re.compile("http(s)?://([a-zA-Z0-9]+):[0-9]{3,5}.*")
         jupyterhub_api_url = env.get('JUPYTERHUB_API_URL')
-        mlhub_container_name = os.getenv("MLHUB_NAME", "mlhub")
         if jupyterhub_api_url:
             hostname = hostname_regex.match(jupyterhub_api_url).group(2)
-            env['JUPYTERHUB_API_URL'] = jupyterhub_api_url.replace(hostname, mlhub_container_name)
+            env['JUPYTERHUB_API_URL'] = jupyterhub_api_url.replace(hostname, self.hub_name)
         jupyterhub_activity_url = env.get('JUPYTERHUB_ACTIVITY_URL')
         if jupyterhub_activity_url:
             hostname = hostname_regex.match(jupyterhub_activity_url).group(2)
-            env['JUPYTERHUB_ACTIVITY_URL'] = jupyterhub_activity_url.replace(hostname, mlhub_container_name)
+            env['JUPYTERHUB_ACTIVITY_URL'] = jupyterhub_activity_url.replace(hostname, self.hub_name)
         
         if self.user_options.get('env'):
             env.update(self.user_options.get('env'))
@@ -173,7 +273,6 @@ class MLHubDockerSpawner(DockerSpawner):
     @gen.coroutine
     def start(self):
         """Set custom configuration during start before calling the super.start method of Dockerspawner"""
-
         if self.user_options.get('image'):
             self.image = self.user_options.get('image')
 
@@ -192,57 +291,73 @@ class MLHubDockerSpawner(DockerSpawner):
                 'mem_limit')
 
         if self.user_options.get('is_mount_volume') == 'on':
-            server_name = getattr(self, "name", "")
-            default_named_volume = 'jupyterhub-user-{username}' + server_name
-            self.volumes = {default_named_volume: "/workspace"}
+            # {username} and {servername} will be automatically replaced by DockerSpawner with the right values as in template_namespace
+            self.volumes = {'jhub-user-{username}{servername}': "/workspace"}
 
         extra_create_kwargs = {}
-        extra_create_kwargs['labels'] = {}
+        # set default label 'origin' to know for sure which containers where started via the hub
+        extra_create_kwargs['labels'] = self.default_label
         if self.user_options.get('days_to_live'):
             days_to_live_in_seconds = int(self.user_options.get('days_to_live')) * 24 * 60 * 60 # days * hours_per_day * minutes_per_hour * seconds_per_minute
             expiration_timestamp = time.time() + days_to_live_in_seconds
-            extra_create_kwargs['labels']['expiration_timestamp_seconds'] =  str(expiration_timestamp)
+            extra_create_kwargs['labels'][LABEL_EXPIRATION_TIMESTAMP] =  str(expiration_timestamp)
         else:
-            extra_create_kwargs['labels']['expiration_timestamp_seconds'] = str(0)
+            extra_create_kwargs['labels'][LABEL_EXPIRATION_TIMESTAMP] = str(0)
 
         if self.user_options.get('gpus'):
             extra_host_config['runtime'] = "nvidia"
+            extra_create_kwargs['labels'][LABEL_NVIDIA_VISIBLE_DEVICES] = self.user_options.get('gpus')
 
         self.extra_host_config.update(extra_host_config)
         self.extra_create_kwargs.update(extra_create_kwargs)
 
-        network_name = self.object_name
-        created_network = None
-
-        try:
-            created_network = self.create_network(network_name)
-            # set self.network_name to the name of the network so that JupyterHub connects the newly created container to the network
-            self.network_name = network_name
-        except:
-            self.log.error(
-                "Could not create the network {network_name} and, thus, cannot create the container."
-                    .format(network_name=network_name)
-            )
-            return
-
-        try:
-            mlhub_container_id = os.getenv("HOSTNAME", "mlhub")
-            created_network.connect(mlhub_container_id)
-        except docker.errors.APIError as e:
-            # In the case of an 403 error, JupyterHub is already in the network which is okay -> continue starting the new container
-            # Example 403 error:
-            # 403 Client Error: Forbidden ("endpoint with name mlhub already exists in network jupyter-admin")
-            if e.status_code != 403:
-                self.log.error(
-                    "Could not connect mlhub to the network and, thus, cannot create the container.")
-                return
-
-        # set the remove flag to trigger the remove object logic in super class to delete the container if it already exists.
+        # Delete existing container when it is created via the options_form UI (to make sure that not an existing container is re-used when you actually want to create a new one)
         # reset the flag afterwards to prevent the container from being removed when just stopped
-        self.remvove = True
+        if (hasattr(self, 'new_creating') and self.new_creating == True):
+            self.remove = True
         res = yield super().start()
         self.remove = False
         return res
+
+    @gen.coroutine
+    def create_object(self):
+        created_network = None
+        try:
+            created_network = self.create_network(self.network_name)
+            self.connect_hub_to_network(created_network)
+        except:
+            self.log.error(
+                "Could not create the network {network_name} and, thus, cannot create the container."
+                    .format(network_name=self.network_name)
+            )
+            return
+        
+        obj = yield super().create_object()
+        return obj
+        
+    @gen.coroutine
+    def remove_object(self):
+        # Clean up the network we created for the container when we started it
+        # First, disconnect all containers from the network and then remove it.
+        #network = self.highlevel_docker_client.networks.get(self.network_name)
+        networks = self.highlevel_docker_client.networks.list(names=[self.network_name])
+        if len(networks) == 1:
+            network = networks[0]
+            # network.containers / network.attrs do not list any containers while the cli does => looks like bug in Python client
+            try:
+                network.disconnect(self.hub_name)
+            except:
+                pass
+            
+            try:
+                network.disconnect(self.object_name)
+            except:
+                pass
+            
+            network.remove()
+        
+        yield super().remove_object()
+
 
     def create_network(self, name):
         """Create a new network to put the new container into it. 
@@ -291,26 +406,45 @@ class MLHubDockerSpawner(DockerSpawner):
         ipam_pool = docker.types.IPAMPool(subnet=next_cidr.exploded,
                                           gateway=(next_cidr.network_address + 1).exploded)
         ipam_config = docker.types.IPAMConfig(pool_configs=[ipam_pool])
-        return client.networks.create(name, ipam=ipam_config)
-
-    def get_lifetime_timestamp(self):
-        if self.container_id is None or self.container_id == '':
-            return None
-        
-        try:
-            container_labels = self.highlevel_docker_client.containers.get(self.container_id).labels
-            expiration_timestamp_seconds = float(container_labels.get('expiration_timestamp_seconds', '0'))
-            if expiration_timestamp_seconds == 0:
-                return None
-            return expiration_timestamp_seconds
-        except:
-            return None
+        return client.networks.create(name, ipam=ipam_config, labels=self.default_label)
     
-    def get_container_metadata(self):
-        meta_string = ""
-        lifetime_timestamp = self.get_lifetime_timestamp()
-        if lifetime_timestamp is not None:
-            difference_in_days = math.ceil((lifetime_timestamp - time.time())/60/60/24)
-            meta_string = "(Expires: {}d)".format(difference_in_days)
+    def connect_hub_to_network(self, network):
+        try:
+            network.connect(self.hub_name)
+        except docker.errors.APIError as e:
+            # In the case of an 403 error, JupyterHub is already in the network which is okay -> continue starting the new container
+            # Example 403 error:
+            # 403 Client Error: Forbidden ("endpoint with name mlhub already exists in network jupyter-admin")
+            if e.status_code != 403:
+                self.log.error(
+                    "Could not connect mlhub to the network and, thus, cannot create the container.")
+                return
+    
+    def get_container_metadata(self) -> str:
+        if self.container_id is None or self.container_id == '':
+            return ""
 
-        return meta_string
+        meta_information = []
+        container_labels = self.get_labels()
+        lifetime_timestamp = self.get_lifetime_timestamp(container_labels)
+        if lifetime_timestamp != 0:
+            difference_in_days = math.ceil((lifetime_timestamp - time.time())/60/60/24)
+            meta_information.append("Expires: {}d".format(difference_in_days))
+        
+        nvidia_visible_devices = container_labels.get(LABEL_NVIDIA_VISIBLE_DEVICES, "")
+        if nvidia_visible_devices != "":
+            meta_information.append("GPUs: {}".format(nvidia_visible_devices))
+        
+        if len(meta_information) == 0:
+            return ""
+        
+        return "({})".format(", ".join(meta_information))
+
+    def get_lifetime_timestamp(self, labels: dict) -> float:
+        return float(labels.get(LABEL_EXPIRATION_TIMESTAMP, '0'))
+
+    def get_labels(self) -> dict:
+        try:
+            return self.highlevel_docker_client.containers.get(self.container_id).labels
+        except:
+            return {}
