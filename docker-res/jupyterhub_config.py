@@ -38,7 +38,7 @@ c.DockerSpawner.notebook_dir = '/workspace'
 c.DockerSpawner.use_internal_ip = True
 c.DockerSpawner.extra_host_config = { 'shm_size': '256m' }
 
-c.DockerSpawner.prefix = 'workspace' 
+c.DockerSpawner.prefix = 'ws' 
 c.DockerSpawner.name_template = '{prefix}-{username}-hub{servername}' # override in your config when you want to have a different name schema. Also consider changing c.Authenticator.username_pattern and check the environment variables to permit ssh connection
 
 # Don't remove containers once they are stopped - persist state

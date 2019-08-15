@@ -96,6 +96,6 @@ RUN \
 
 ENV \
    SSH_PERMIT_TARGET_PORT=8091 \
-   SSH_PERMIT_TARGET_HOST="workspace-*"
+   SSH_PERMIT_TARGET_HOST="ws-*"
 
 ENTRYPOINT /bin/bash $_RESOURCES_PATH/docker-entrypoint.sh
