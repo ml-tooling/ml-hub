@@ -429,6 +429,9 @@ class MLHubDockerSpawner(DockerSpawner):
         if nvidia_visible_devices != "":
             meta_information.append("GPUs: {}".format(nvidia_visible_devices))
         
+        if len(meta_information) == 0:
+            return ""
+        
         return "({})".format(", ".join(meta_information))
 
     def get_lifetime_timestamp(self, labels: dict) -> float:
