@@ -130,5 +130,5 @@ COPY docker-res/kubernetes/jupyterhub_config.py /srv/jupyterhub_config.py
 #COPY docker-res/kubernetes/jupyterhub_extra_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_extra_config.py
 
 RUN \
-   ln -s /resources/docker-entrypoint.sh /jupyterhub
+  ln -s /resources/docker-entrypoint.sh /usr/local/sbin/jupyterhub
 ENV PATH=/jupyterhub:$PATH

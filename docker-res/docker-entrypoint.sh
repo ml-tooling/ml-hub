@@ -1,3 +1,5 @@
+#!/bin/bash
+
 printf "Starting ML Hub\n"
 
 # create / copy certificates
@@ -20,10 +22,12 @@ function start_jupyterhub {
     if [ "$execution_mode" == "k8s" ]; then
       config_file=$_RESOURCES_PATH/kubernetes/jupyterhub_config.py
     fi
-    jupyterhub -f config_file &
+    jupyterhub -f $config_file &
 }
 
 start_ssh
+rm /usr/local/sbin/jupyterhub
+ln -s /usr/local/bin/jupyterhub /usr/local/sbin/jupyterhub
 start_jupyterhub
 
 # Copied from: https://docs.docker.com/config/containers/multi-service_container/
@@ -49,4 +53,3 @@ while sleep 60; do
     start_jupyterhub
   fi
 done
-
