@@ -127,4 +127,8 @@ RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
 COPY docker-res/kubernetes/jupyterhub_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_config.py
 # Debug as required in helm chart
 COPY docker-res/kubernetes/jupyterhub_config.py /srv/jupyterhub_config.py
-COPY docker-res/kubernetes/jupyterhub_extra_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_extra_config.py
+#COPY docker-res/kubernetes/jupyterhub_extra_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_extra_config.py
+
+RUN \
+   ln -s /resources/docker-entrypoint.sh /jupyterhub
+ENV PATH=/jupyterhub:$PATH

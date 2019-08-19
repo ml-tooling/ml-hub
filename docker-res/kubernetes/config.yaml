@@ -7,7 +7,7 @@ singleuser:
   image: 
     name: mltooling/ml-workspace
     tag: 0.5.6
-  startTimeout: 120
+  startTimeout: 600
   cmd:
   uid: 0
   fsGid: 0

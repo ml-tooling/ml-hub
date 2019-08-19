@@ -14,7 +14,8 @@ from z2jh import get_config, set_config_if_not_none
 # at the rate required.
 AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
-c.JupyterHub.spawner_class = 'kubespawner.KubeSpawner'
+#c.JupyterHub.spawner_class = 'kubespawner.KubeSpawner'
+c.JupyterHub.spawner_class = 'mlhubspawner.MLHubKubernetesSpawner'
 
 # Connect to a proxy running in a different pod
 c.ConfigurableHTTPProxy.api_url = 'http://{}:{}'.format(os.environ['PROXY_API_SERVICE_HOST'], int(os.environ['PROXY_API_SERVICE_PORT']))
