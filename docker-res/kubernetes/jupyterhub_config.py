@@ -8,6 +8,9 @@ from jupyterhub.utils import url_path_join
 
 from z2jh import get_config, set_config_if_not_none
 
+# DEBUG
+c.MLHubKubernetesSpawner.port = 8092
+
 # Configure JupyterHub to use the curl backend for making HTTP requests,
 # rather than the pure-python implementations. The default one starts
 # being too slow to make a large number of requests to the proxy API

@@ -23,9 +23,9 @@ hub:
   allowNamedServers: True
   extraConfig:
      template_paths: "c.JupyterHub.template_paths = ['/usr/local/lib/python3.6/dist-packages/nativeauthenticator/templates/']"
-     port: "c.Spawner.port = 8090"
+     #port: "c.Spawner.port = 8090"
   extraEnv:
-  #- "PROXY_PUBLIC_SERVICE_PORT=8091"
+#    PROXY_PUBLIC_SERVICE_PORT: 8091
     EXECUTION_MODE: "k8s"
 
 auth:
