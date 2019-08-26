@@ -6,6 +6,8 @@ It extends the KubeSpawner with following features:
 """
 
 from kubespawner import KubeSpawner
+from kubernetes import client
+from kubernetes.client.models import V1Service, V1ServiceSpec, V1ServicePort, V1ObjectMeta
 
 import os
 import socket
@@ -191,7 +193,7 @@ class MLHubKubernetesSpawner(KubeSpawner):
         if self.user_options.get('cpu_limit'):
             env["MAX_NUM_THREADS"] = self.user_options.get('cpu_limit')
 
-       # env['SSH_JUMPHOST_TARGET'] = self.object_name # TODO: replace with kubernetes service name
+        env['SSH_JUMPHOST_TARGET'] = self.pod_name
 
         return env
 
@@ -219,6 +221,7 @@ class MLHubKubernetesSpawner(KubeSpawner):
 
         # set default label 'origin' to know for sure which containers where started via the hub
         self.extra_labels['origin'] = self.hub_name
+        self.extra_labels['pod_name'] = self.pod_name
         if self.user_options.get('days_to_live'):
             days_to_live_in_seconds = int(self.user_options.get('days_to_live')) * 24 * 60 * 60 # days * hours_per_day * minutes_per_hour * seconds_per_minute
             expiration_timestamp = time.time() + days_to_live_in_seconds
@@ -229,8 +232,48 @@ class MLHubKubernetesSpawner(KubeSpawner):
         #if self.user_options.get('gpus'):
         #    extra_host_config['runtime'] = "nvidia"
         #    self.extra_labels[LABEL_NVIDIA_VISIBLE_DEVICES] = self.user_options.get('gpus')
+
         res = yield super().start()
+
+        # Create service for pod so that it can be routed via name
+        service = V1Service(
+            kind = 'Service',
+            spec = V1ServiceSpec(
+                type='ClusterIP',
+                ports=[V1ServicePort(port=8091, target_port=8091)],
+                selector={
+                    'origin': self.extra_labels['origin'], 
+                    'pod_name': self.extra_labels['pod_name']
+                }
+            ),
+            metadata = V1ObjectMeta(
+                name=self.pod_name,
+                labels=self.extra_labels
+            )
+        )
+        try:
+            yield self.asynchronize(
+                self.api.create_namespaced_service,
+                namespace=self.namespace,
+                body=service
+            )
+        except client.rest.ApiException as e:
+            if e.status == 409:
+                self.log.info('Service {} already existed. No need to re-create.'.format(self.pod_name))
+
         return res
+    
+    @gen.coroutine
+    def stop(self, now=False):
+        yield super().stop(now=now)
+
+        yield self.asynchronize(
+            self.api.delete_namespaced_service,
+            name=self.pod_name,
+            namespace=self.namespace
+        )
+
+
     
     def get_container_metadata(self) -> str:
         if self.pod_name is None or self.pod_name == '':
@@ -260,3 +303,13 @@ class MLHubKubernetesSpawner(KubeSpawner):
             return self.pod_reflector.pods.get(self.pod_name, None).metadata.labels
         except:
             return {}
+    
+    @gen.coroutine
+    def delete_if_exists(self, kind, safe_name, future):
+        try:
+            yield future
+            self.log.info('Deleted %s/%s', kind, safe_name)
+        except client.rest.ApiException as e:
+            if e.status != 404:
+                raise
+            self.log.warn("Could not delete %s/%s: does not exist", kind, safe_name)

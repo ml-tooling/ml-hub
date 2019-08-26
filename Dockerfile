@@ -74,6 +74,14 @@ RUN \
 #    apt-get install -y git && \
 #    clean-layer.sh
 
+# Set Debian Frontend to 'noninteractive' so that sslh does not ask for mode during installation
+ENV \
+  DEBIAN_FRONTEND="noninteractive"
+RUN \
+   apt-get update && \
+   apt-get install -y --no-install-recommends sslh && \
+   clean-layer.sh
+
 RUN \
    pip install --no-cache dockerspawner && \
    pip install --no-cache git+https://github.com/ml-tooling/nativeauthenticator@8ba7a1a4757101c723e59e78d928c2264ec3c973 && \
@@ -127,8 +135,13 @@ RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
 COPY docker-res/kubernetes/jupyterhub_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_config.py
 # Debug as required in helm chart
 COPY docker-res/kubernetes/jupyterhub_config.py /srv/jupyterhub_config.py
+COPY docker-res/kubernetes/patch_hub_service.py /resources/patch_hub_service.py
 #COPY docker-res/kubernetes/jupyterhub_extra_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_extra_config.py
 
+COPY docker-res/kubernetes/docker-entrypoint-start-hub.sh $_RESOURCES_PATH/docker-entrypoint-start-hub.sh
+COPY docker-res/kubernetes/docker-entrypoint-start-proxy.sh $_RESOURCES_PATH/docker-entrypoint-start-proxy.sh
+
 RUN \
-  ln -s /resources/docker-entrypoint.sh /usr/local/sbin/jupyterhub
-ENV PATH=/jupyterhub:$PATH
+  ln -s $_RESOURCES_PATH/docker-entrypoint-start-hub.sh /usr/local/sbin/jupyterhub && \
+  ln -s $_RESOURCES_PATH/docker-entrypoint-start-proxy.sh /usr/local/sbin/configurable-http-proxy
+#ENV PATH=/jupyterhub:$PATH

@@ -10,6 +10,7 @@ from z2jh import get_config, set_config_if_not_none
 
 # DEBUG
 c.MLHubKubernetesSpawner.port = 8092
+c.MLHubKubernetesSpawner.pod_name_template = 'ws-{username}-hub{servername}' # override in your config when you want to have a different name schema. Also consider changing c.Authenticator.username_pattern and check the environment variables to permit ssh connection
 
 # Configure JupyterHub to use the curl backend for making HTTP requests,
 # rather than the pure-python implementations. The default one starts

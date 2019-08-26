@@ -1,12 +1,16 @@
 proxy:
   secretToken: 4bda3bd04f6ae5ia28368bf7b5514712351fd9cf8edb09ce9b26f73500f8aa54b
+  chp:
+    image:
+      name: mltooling/ml-hub
+      tag: 0.2.1-SNAPSHOT
 
 singleuser:
   storage:
     type: none
   image: 
     name: mltooling/ml-workspace
-    tag: 0.6.0
+    tag: 0.6.1
   startTimeout: 600
   cmd:
   uid: 0
@@ -17,7 +21,7 @@ hub:
     type: foo
   image:
     name: mltooling/ml-hub
-    tag: 0.2-SNAPSHOT
+    tag: 0.2.1-SNAPSHOT
     pullPolicy: Always
   uid: 0
   allowNamedServers: True

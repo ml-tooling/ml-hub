@@ -448,3 +448,11 @@ class MLHubDockerSpawner(DockerSpawner):
             return self.highlevel_docker_client.containers.get(self.container_id).labels
         except:
             return {}
+
+    # Override
+    def template_namespace(self):
+        template = super().template_namespace()
+        if template["servername"] != "":
+            template["servername"] = "-" + template["servername"]
+        
+        return template
