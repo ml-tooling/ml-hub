@@ -39,6 +39,12 @@
             event.stopImmediatePropagation();
             let row = $(self).parent();
             let serverName = row.find(".new-server-name").val();
+
+            if (serverName === '') {
+              alert('Server name cannot be empty');
+              return;
+            }
+
             let serverUser = row.find(".new-server-user");
             let user = window.jhdata.user; // copied from home.js
             if (serverUser.length === 1) {
@@ -102,6 +108,11 @@
     </tbody>
   </table>
   {% endif %}
+  {% if user.admin %}
+  <div style="width: fit-content; color: grey;">
+    To see all started workspaces, also for other users, click on the admin tab on the top.
+  </div>
+  {% endif %}
 {% endblock %}
 
 {% block script %}
@@ -135,27 +146,6 @@ $(document).ready(() => {
             select.insertBefore(".new-server-name");
             // some UI sugar
             $('<span> / </span>').insertBefore(".new-server-name");
-
-
-            // show the other user's servers
-            // TODO: duplicated to above: merge when decided to keep it
-            $.each(res, function(i, user) {
-              // Don't show the user's own servers as they are already loaded above
-              if (user.name === "{{ user.name }}") {
-                return true; // is the same in $.each as continue in a for-statement
-              }
-
-              $.each(user.servers, function(j, server) {
-                let name = user.name + "/" + server.name;
-                let userServerRow = $("<tr>", {class: "home-server-row", "data-server-name": name});
-                $('<td>').html(name).appendTo(userServerRow);
-                $('<td>').append(
-                  $('<a>', {class: "server-link", href: server.url}).html(server.url)
-                ).appendTo(userServerRow);
-                userServerRow.append($('<td>')).append($('<td>'));
-                $('.server-table').find('tbody').append(userServerRow);
-              });
-            });
 
         }).catch(() => {});
 });
