@@ -1,3 +1,5 @@
+#!/bin/bash
+
 printf "Starting ML Hub\n"
 
 # create / copy certificates
