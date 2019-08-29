@@ -122,9 +122,13 @@ RUN \
 
 ENV \
    SSH_PERMIT_TARGET_PORT=8091 \
-   SSH_PERMIT_TARGET_HOST="ws-*"
+   SSH_PERMIT_TARGET_HOST="ws-*" \
+   START_NGINX=true \
+   START_SSH=true \
+   START_JHUB=true \
+   START_CHP=false
 
-CMD /bin/bash $_RESOURCES_PATH/docker-entrypoint.sh
+ENTRYPOINT /bin/bash $_RESOURCES_PATH/docker-entrypoint.sh
 
 ADD docker-res/kubernetes/z2jh.py /usr/local/lib/python3.6/dist-packages/z2jh.py
 ADD docker-res/kubernetes/cull_idle_servers.py /usr/local/bin/cull_idle_servers.py
@@ -140,8 +144,3 @@ COPY docker-res/kubernetes/patch_hub_service.py /resources/patch_hub_service.py
 
 COPY docker-res/kubernetes/docker-entrypoint-start-hub.sh $_RESOURCES_PATH/docker-entrypoint-start-hub.sh
 COPY docker-res/kubernetes/docker-entrypoint-start-proxy.sh $_RESOURCES_PATH/docker-entrypoint-start-proxy.sh
-
-RUN \
-  ln -s $_RESOURCES_PATH/docker-entrypoint-start-hub.sh /usr/local/sbin/jupyterhub && \
-  ln -s $_RESOURCES_PATH/docker-entrypoint-start-proxy.sh /usr/local/sbin/configurable-http-proxy
-#ENV PATH=/jupyterhub:$PATH
