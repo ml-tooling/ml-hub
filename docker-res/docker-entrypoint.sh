@@ -2,6 +2,8 @@
 
 printf "Starting ML Hub\n"
 
+incoming_args="$@"
+echo "$incoming_args"
 config_file=$_RESOURCES_PATH/jupyterhub_config.py
 execution_mode=${EXECUTION_MODE:-local}
 if [ "$execution_mode" == "k8s" ]; then
@@ -10,7 +12,8 @@ if [ "$execution_mode" == "k8s" ]; then
   # make changes to nginx so that it works in Kubernetes as well
   # TODO: build into run_nginx.py script
   sed -i 's/resolver 127.0.0.11/resolver 10.96.0.10/g' /etc/nginx/nginx.conf
-  sed -i "s/set \$service_suffix ''/set \$service_suffix .jhub.svc.cluster.local/g" /etc/nginx/nginx.conf
+  namespace="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
+  sed -i "s/set \$service_suffix ''/set \$service_suffix .$namespace.svc.cluster.local/g" /etc/nginx/nginx.conf
 
   # Preserve Kubernetes-specific environment variables for sshd process
   echo "export KUBERNETES_SERVICE_HOST=$KUBERNETES_SERVICE_HOST" >> $SSHD_ENVIRONMENT_VARIABLES
@@ -19,7 +22,7 @@ fi
 
 # It is possible to override the default sshd target with this command,
 # e.g. if it runs in a different container
-if [ -v "${SSHD_TARGET}" ]; then
+if [ ! -z "${SSHD_TARGET}" ]; then
   sed -i "s/127.0.0.1:22/${SSHD_TARGET}/g" /etc/nginx/nginx.conf
 fi
 
@@ -49,7 +52,8 @@ function start_jupyterhub {
 function start_http_proxy {
     echo "Start configurable-http-proxy"
     # $@ corresponds to the incoming script arguments
-    configurable-http-proxy "$@" &
+    echo "$incoming_args"
+    configurable-http-proxy $incoming_args &
 }
 
 if [ "${START_SSH}" == true ]; then
@@ -74,7 +78,8 @@ fi
 while sleep 60; do
   if [ "${START_SSH}" == true ]; then
     ps aux |grep sshd |grep -q -v grep
-    if [ $? -ne 0 ]; then
+    PROCESS_STATUS=$?
+    if [ $PROCESS_STATUS -ne 0 ]; then
       echo "SSH Daemon stopped. Restart it..."
       start_ssh
     fi
@@ -82,7 +87,8 @@ while sleep 60; do
 
   if [ "${START_JHUB}" == true ]; then
     ps aux |grep jupyterhub |grep -q -v grep
-    if [ $? -ne 0 ]; then
+    PROCESS_STATUS=$?
+    if [ $PROCESS_STATUS -ne 0 ]; then
       echo "JupyterHub stopped. Restart it..."
       start_jupyterhub
     fi
@@ -90,7 +96,8 @@ while sleep 60; do
 
   if [ "${START_CHP}" == true ]; then
     ps aux |grep configurable-http-proxy |grep -q -v grep
-    if [ $? -ne 0 ]; then
+    PROCESS_STATUS=$?
+    if [ $PROCESS_STATUS -ne 0 ]; then
       echo "configurable-http-proxy stopped. Restart it..."
       start_http_proxy
     fi

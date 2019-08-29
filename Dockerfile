@@ -128,7 +128,8 @@ ENV \
    START_JHUB=true \
    START_CHP=false
 
-ENTRYPOINT /bin/bash $_RESOURCES_PATH/docker-entrypoint.sh
+# Entrypoint must use the array notation, otherwise the entrypoint.sh script does not receive passed cmd arguments (probably because Docker will start it like this: /bin/sh -c /bin/bash /resources/docker-entrypoint.sh <cmd-args>)
+ENTRYPOINT ["/bin/bash", "/resources/docker-entrypoint.sh"]
 
 ADD docker-res/kubernetes/z2jh.py /usr/local/lib/python3.6/dist-packages/z2jh.py
 ADD docker-res/kubernetes/cull_idle_servers.py /usr/local/bin/cull_idle_servers.py
@@ -139,8 +140,5 @@ RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
 COPY docker-res/kubernetes/jupyterhub_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_config.py
 # Debug as required in helm chart
 COPY docker-res/kubernetes/jupyterhub_config.py /srv/jupyterhub_config.py
-COPY docker-res/kubernetes/patch_hub_service.py /resources/patch_hub_service.py
 #COPY docker-res/kubernetes/jupyterhub_extra_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_extra_config.py
 
-COPY docker-res/kubernetes/docker-entrypoint-start-hub.sh $_RESOURCES_PATH/docker-entrypoint-start-hub.sh
-COPY docker-res/kubernetes/docker-entrypoint-start-proxy.sh $_RESOURCES_PATH/docker-entrypoint-start-proxy.sh
