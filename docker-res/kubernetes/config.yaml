@@ -3,7 +3,7 @@ proxy:
   chp:
     image:
       name: mltooling/ml-hub
-      tag: 0.2.1-SNAPSHOT
+      tag: 0.2.2-SNAPSHOT
 
 singleuser:
   storage:
@@ -21,7 +21,7 @@ hub:
     type: foo
   image:
     name: mltooling/ml-hub
-    tag: 0.2.1-SNAPSHOT
+    tag: 0.2.2-SNAPSHOT
     pullPolicy: Always
   uid: 0
   fsGid: 0
@@ -44,3 +44,7 @@ auth:
     className: nativeauthenticator.NativeAuthenticator
     config:
       username_pattern: '^((?!-hub).)*$'
+
+scheduling:
+  userScheduler:
+    enabled: false

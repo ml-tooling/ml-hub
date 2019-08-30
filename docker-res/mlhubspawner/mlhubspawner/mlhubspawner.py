@@ -292,7 +292,8 @@ class MLHubDockerSpawner(DockerSpawner):
 
         if self.user_options.get('is_mount_volume') == 'on':
             # {username} and {servername} will be automatically replaced by DockerSpawner with the right values as in template_namespace
-            self.volumes = {'jhub-user-{username}{servername}': "/workspace"}
+            #volumeName = self.name_template.format(prefix=self.prefix)
+            self.volumes = {self.object_name: "/workspace"}
 
         extra_create_kwargs = {}
         # set default label 'origin' to know for sure which containers where started via the hub
