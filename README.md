@@ -109,6 +109,18 @@ If you have an own certificate, mount the certificate and key files as `cert.crt
 
 </details>
 
+### Spawner
+
+We override [DockerSpawner](https://github.com/ml-tooling/ml-hub/blob/master/docker-res/mlhubspawner/mlhubspawner/mlhubspawner.py) and [KubeSpawner](https://github.com/ml-tooling/ml-hub/blob/master/docker-res/mlhubspawner/mlhubspawner/mlhubkubernetesspawner.py) for Docker and Kubernetes, respectively. We do so to add convenient labels and environment variables. Further, we return a custom option form to configure the resouces of the workspaces.
+
+#### DockerSpawner
+
+- We create a separate Docker network for each user, which means that (named) workspaces of the same user can see each other but workspaces of different users cannot see each other. Doing so adds another security layer in case a user starts a service within the own workspace and does not properly secure it.
+
+#### KubeSpawner
+
+- Create / delete services for a workspace, so that the hub can access them via Kubernetes DNS.
+
 ## Support
 
 The ML Hub project is maintained by [@raethlein](https://twitter.com/raethlein) and [@LukasMasuch](https://twitter.com/LukasMasuch). Please understand that we won't be able
