@@ -86,7 +86,7 @@ while sleep 60; do
   fi
 
   if [ "${START_JHUB}" == true ]; then
-    ps aux |grep jupyterhub |grep -q -v grep
+    ps aux |grep "jupyterhub " |grep -q -v grep
     PROCESS_STATUS=$?
     if [ $PROCESS_STATUS -ne 0 ]; then
       echo "JupyterHub stopped. Restart it..."
