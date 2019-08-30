@@ -71,12 +71,18 @@ MLHub is based on [SSH Proxy](https://github.com/ml-tooling/ssh-proxy). Check ou
         <td>START_SSH</td>
         <td>Start the sshd process which is used to tunnel ssh to the workspaces.</td>
         <td>true</td>
+    </tr>
+    <tr>
         <td>START_NGINX</td>
         <td>Whether or not to start the nginx proxy. If the Hub should be used without additional tool routing to workspaces, this could be disabled. SSH port 22 would need to be published separately then. This option is built-in to work with [zero-to-mlhub-k8s](https://github.com/ml-tooling/zero-to-mlhub-k8s)</td>
         <td>true</td>
+    </tr>
+    <tr>
         <td>START_JHUB</td>
         <td>Start the Jupyterhub hub. This option is built-in to work with [zero-to-mlhub-k8s](https://github.com/ml-tooling/zero-to-mlhub-k8s), where the image is also used as the CHP image.</td>
         <td>true</td>
+    </tr>
+    <tr>
         <td>START_CHP</td>
         <td>Start the Jupyterhub proxy process separately (The hub should not start the proxy itself, which can be configured via the Jupyterhub config file. This option is built-in to work with [zero-to-mlhub-k8s](https://github.com/ml-tooling/zero-to-mlhub-k8s), where the image is also used as the CHP image.</td>
         <td>false</td>
