@@ -54,6 +54,7 @@ docker run \
 ```
 
 To persist the hub data, such as started workspaces and created users, mount a directory to `/data` (`-v`).
+A name (`--name`) should be set for the mlhub container, since we let the workspace container connect to the hub not via its docker id but its docker name. This way, the workspaces can still connect to the hub in case it was deleted and re-created (for example when updated).
 
 For Kubernetes deployment, we forked and modified [zero-to-jupyterhub-k8s](https://github.com/jupyterhub/zero-to-jupyterhub-k8s) which you can find [here](https://github.com/ml-tooling/zero-to-mlhub-k8s).
 
