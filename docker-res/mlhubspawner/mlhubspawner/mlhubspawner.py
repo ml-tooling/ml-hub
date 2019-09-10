@@ -457,3 +457,44 @@ class MLHubDockerSpawner(DockerSpawner):
             template["servername"] = "-" + template["servername"]
         
         return template
+
+    # NOTE: overwrite method to fix an issue with the image splitting.
+    # We create a PR with the fix for Dockerspawner and, if fixed, we can
+    # remove this one here again
+    @gen.coroutine
+    def pull_image(self, image):
+        """Pull the image, if needed
+        - pulls it unconditionally if pull_policy == 'always'
+        - otherwise, checks if it exists, and
+          - raises if pull_policy == 'never'
+          - pulls if pull_policy == 'ifnotpresent'
+        """
+        # docker wants to split repo:tag
+
+        # the part split("/")[-1] allows having an image from a custom repo
+        # with port but without tag. For example: my.docker.repo:51150/foo would not 
+        # pass this test, resulting in image=my.docker.repo:51150/foo and tag=latest
+        if ':' in image.split("/")[-1]:
+            # rsplit splits from right to left, allowing to have a custom image repo with port
+            repo, tag = image.rsplit(':', 1)
+        else:
+            repo = image
+            tag = 'latest'
+
+        if self.pull_policy.lower() == 'always':
+            # always pull
+            self.log.info("pulling %s", image)
+            yield self.docker('pull', repo, tag)
+            # done
+            return
+        try:
+            # check if the image is present
+            yield self.docker('inspect_image', image)
+        except docker.errors.NotFound:
+            if self.pull_policy == "never":
+                # never pull, raise because there is no such image
+                raise
+            elif self.pull_policy == "ifnotpresent":
+                # not present, pull it for the first time
+                self.log.info("pulling image %s", image)
+                yield self.docker('pull', repo, tag)
