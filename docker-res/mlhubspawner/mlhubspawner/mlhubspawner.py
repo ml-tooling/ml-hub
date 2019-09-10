@@ -114,33 +114,15 @@ class MLHubDockerSpawner(DockerSpawner):
         div_style = "margin-bottom: 16px"
 
         default_image = getattr(self, "image", "mltooling/ml-workspace:latest")
-        # take the last part of the full-qualified image name; e.g. docker.wdf.sap.corp:51150/com.sap.sapai.studio/studio-workspace:latest -> studio-workspace:latest 
-        image_name_and_tag = default_image.split("/")[-1]
-        # split the name and the tag; e.g. studio-workspace:latest -> [studio-workspace, latest]
-        default_image_parts = image_name_and_tag.split(":")
-        default_image_gpu = default_image_parts[0] + "-gpu"
-        if len(default_image_parts) == 2:
-            default_image_gpu = default_image_gpu + ":" + default_image_parts[1]
-        # replace the image name in the full-qualified name with the gpu one; 
-        # e.g. docker.wdf.sap.corp:51150/com.sap.sapai.studio/studio-workspace:latest -> docker.wdf.sap.corp:51150/com.sap.sapai.studio/studio-workspace-gpu:latest
-        default_image_gpu = default_image.replace(image_name_and_tag, default_image_gpu)
-        if default_image not in self.workspace_images:
-            self.workspace_images.append(default_image)
-        if default_image_gpu not in self.workspace_images:
-            self.workspace_images.append(default_image_gpu)
 
         # When GPus shall be used, change the default image to the default gpu image (if the user entered a different image, it is not changed), and show an info box
         # reminding the user of inserting a GPU-leveraging docker image
         show_gpu_info_box = "$('#gpu-info-box').css('display', 'block');"
         hide_gpu_info_box = "$('#gpu-info-box').css('display', 'none');"
-        use_cpu_image = "if($('#image-name').val() === '{default_image}'){{$('#image-name').val('{default_image_gpu}');}}".format(default_image=default_image, default_image_gpu=default_image_gpu)
-        use_gpu_image = "if($('#image-name').val() === '{default_image_gpu}'){{$('#image-name').val('{default_image}');}}".format(default_image=default_image, default_image_gpu=default_image_gpu)
-        gpu_input_listener = "if(event.srcElement.value !== ''){{ {show_gpu_info_box} {use_cpu_image} }}else{{ {hide_gpu_info_box} {use_gpu_image} }}" \
+        gpu_input_listener = "if(event.srcElement.value !== ''){{ {show_gpu_info_box} }}else{{ {hide_gpu_info_box} }}" \
             .format(
                 show_gpu_info_box=show_gpu_info_box, 
-                hide_gpu_info_box=hide_gpu_info_box, 
-                use_cpu_image="", #use_cpu_image,
-                use_gpu_image="" #use_gpu_image
+                hide_gpu_info_box=hide_gpu_info_box
         )
 
         # Show / hide custom image input field when checkbox is clicked
@@ -202,7 +184,6 @@ class MLHubDockerSpawner(DockerSpawner):
             label_style=label_style,
             input_style=input_style,
             default_image=default_image,
-            default_image_gpu=default_image_gpu,
             images_template=images_template,
             custom_image_listener=custom_image_listener,
             optional_label=optional_label,

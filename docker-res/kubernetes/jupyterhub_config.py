@@ -9,8 +9,11 @@ from jupyterhub.utils import url_path_join
 from z2jh import get_config, set_config_if_not_none
 
 # DEBUG
-c.MLHubKubernetesSpawner.port = 8092
+c.MLHubKubernetesSpawner.port = int(os.getenv("DEFAULT_WORKSPACE_PORT", 8080))
 c.MLHubKubernetesSpawner.pod_name_template = 'ws-{username}-hub{servername}' # override in your config when you want to have a different name schema. Also consider changing c.Authenticator.username_pattern and check the environment variables to permit ssh connection
+c.Spawner.environment = {"AUTHENTICATE_VIA_JUPYTER": "true", "SHUTDOWN_INACTIVE_KERNELS": "true"}
+c.MLHubKubernetesSpawner.image = "mltooling/ml-workspace:0.8.2"
+c.MLHubKubernetesSpawner.workspace_images = [c.MLHubKubernetesSpawner.image, "mltooling/ml-workspace-gpu:0.8.1", "mltooling/ml-workspace-r:0.8.1"]
 
 # Configure JupyterHub to use the curl backend for making HTTP requests,
 # rather than the pure-python implementations. The default one starts

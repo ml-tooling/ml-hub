@@ -121,7 +121,8 @@ RUN \
    ln -s /usr/bin/python3 /usr/bin/python
 
 ENV \
-   SSH_PERMIT_TARGET_PORT=8091 \
+   DEFAULT_WORKSPACE_PORT=8080 \
+   SSH_PERMIT_TARGET_PORT=8080 \
    SSH_PERMIT_TARGET_HOST="ws-*" \
    START_NGINX=true \
    START_SSH=true \
