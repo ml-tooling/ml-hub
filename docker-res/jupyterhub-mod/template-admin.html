@@ -191,8 +191,9 @@ $(".ssh-server").click(function() {
     dialog.find('.copy-clipboard-button').click(() => {setupCommandTextField.select(); window.document.execCommand('copy');})
     fetch("/user/" + user + serverName + "/tooling/ssh/setup-command?origin=" + window.location.origin)
         .then(res => {
-            if (res.status === 302) {
-                return "You are not authorized. Try to access the server first and authorize."
+            // If the admin is not authorized to access the workspace, the request is redirected and the flag is set to true
+            if (res.status === 302 || res.redirected === true) {
+                return "You are not authorized. Try to access the server first and authorize. If needed, go to the workspace and click on 'Open Tools - SSH Access'."
             }
             else if (!res.ok) {
                 return "Unfortunately some error occurred.";
