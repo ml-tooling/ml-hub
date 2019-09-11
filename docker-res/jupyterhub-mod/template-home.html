@@ -66,7 +66,8 @@
     <tbody>
       <tr class="home-server-row add-server-row">
         <td colspan="4">
-          <input class="new-server-name" placeholder="Name your server">
+          <!-- Set a maxlength since the container name may not exceed 63 characters (used as DNS name) -->
+          <input class="new-server-name" placeholder="Name your server" maxlength="25">
           <a role="button" class="new-server-btn" class="add-server btn btn-xs btn-primary" onclick="onAddServerClick(this, event)">
             Add New Server
           </a>
