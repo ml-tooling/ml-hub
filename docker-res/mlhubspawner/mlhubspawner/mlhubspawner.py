@@ -319,25 +319,6 @@ class MLHubDockerSpawner(DockerSpawner):
         
     @gen.coroutine
     def remove_object(self):
-        # Clean up the network we created for the container when we started it
-        # First, disconnect all containers from the network and then remove it.
-        #network = self.highlevel_docker_client.networks.get(self.network_name)
-        networks = self.highlevel_docker_client.networks.list(names=[self.network_name])
-        if len(networks) == 1:
-            network = networks[0]
-            # network.containers / network.attrs do not list any containers while the cli does => looks like bug in Python client
-            try:
-                network.disconnect(self.hub_name)
-            except:
-                pass
-            
-            try:
-                network.disconnect(self.object_name)
-            except:
-                pass
-            
-            network.remove()
-        
         yield super().remove_object()
 
 
