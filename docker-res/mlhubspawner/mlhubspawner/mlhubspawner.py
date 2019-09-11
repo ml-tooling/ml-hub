@@ -114,33 +114,15 @@ class MLHubDockerSpawner(DockerSpawner):
         div_style = "margin-bottom: 16px"
 
         default_image = getattr(self, "image", "mltooling/ml-workspace:latest")
-        # take the last part of the full-qualified image name; e.g. docker.wdf.sap.corp:51150/com.sap.sapai.studio/studio-workspace:latest -> studio-workspace:latest 
-        image_name_and_tag = default_image.split("/")[-1]
-        # split the name and the tag; e.g. studio-workspace:latest -> [studio-workspace, latest]
-        default_image_parts = image_name_and_tag.split(":")
-        default_image_gpu = default_image_parts[0] + "-gpu"
-        if len(default_image_parts) == 2:
-            default_image_gpu = default_image_gpu + ":" + default_image_parts[1]
-        # replace the image name in the full-qualified name with the gpu one; 
-        # e.g. docker.wdf.sap.corp:51150/com.sap.sapai.studio/studio-workspace:latest -> docker.wdf.sap.corp:51150/com.sap.sapai.studio/studio-workspace-gpu:latest
-        default_image_gpu = default_image.replace(image_name_and_tag, default_image_gpu)
-        if default_image not in self.workspace_images:
-            self.workspace_images.append(default_image)
-        if default_image_gpu not in self.workspace_images:
-            self.workspace_images.append(default_image_gpu)
 
         # When GPus shall be used, change the default image to the default gpu image (if the user entered a different image, it is not changed), and show an info box
         # reminding the user of inserting a GPU-leveraging docker image
         show_gpu_info_box = "$('#gpu-info-box').css('display', 'block');"
         hide_gpu_info_box = "$('#gpu-info-box').css('display', 'none');"
-        use_cpu_image = "if($('#image-name').val() === '{default_image}'){{$('#image-name').val('{default_image_gpu}');}}".format(default_image=default_image, default_image_gpu=default_image_gpu)
-        use_gpu_image = "if($('#image-name').val() === '{default_image_gpu}'){{$('#image-name').val('{default_image}');}}".format(default_image=default_image, default_image_gpu=default_image_gpu)
-        gpu_input_listener = "if(event.srcElement.value !== ''){{ {show_gpu_info_box} {use_cpu_image} }}else{{ {hide_gpu_info_box} {use_gpu_image} }}" \
+        gpu_input_listener = "if(event.srcElement.value !== ''){{ {show_gpu_info_box} }}else{{ {hide_gpu_info_box} }}" \
             .format(
                 show_gpu_info_box=show_gpu_info_box, 
-                hide_gpu_info_box=hide_gpu_info_box, 
-                use_cpu_image="", #use_cpu_image,
-                use_gpu_image="" #use_gpu_image
+                hide_gpu_info_box=hide_gpu_info_box
         )
 
         # Show / hide custom image input field when checkbox is clicked
@@ -202,7 +184,6 @@ class MLHubDockerSpawner(DockerSpawner):
             label_style=label_style,
             input_style=input_style,
             default_image=default_image,
-            default_image_gpu=default_image_gpu,
             images_template=images_template,
             custom_image_listener=custom_image_listener,
             optional_label=optional_label,
@@ -338,25 +319,6 @@ class MLHubDockerSpawner(DockerSpawner):
         
     @gen.coroutine
     def remove_object(self):
-        # Clean up the network we created for the container when we started it
-        # First, disconnect all containers from the network and then remove it.
-        #network = self.highlevel_docker_client.networks.get(self.network_name)
-        networks = self.highlevel_docker_client.networks.list(names=[self.network_name])
-        if len(networks) == 1:
-            network = networks[0]
-            # network.containers / network.attrs do not list any containers while the cli does => looks like bug in Python client
-            try:
-                network.disconnect(self.hub_name)
-            except:
-                pass
-            
-            try:
-                network.disconnect(self.object_name)
-            except:
-                pass
-            
-            network.remove()
-        
         yield super().remove_object()
 
 
@@ -457,3 +419,44 @@ class MLHubDockerSpawner(DockerSpawner):
             template["servername"] = "-" + template["servername"]
         
         return template
+
+    # NOTE: overwrite method to fix an issue with the image splitting.
+    # We create a PR with the fix for Dockerspawner and, if fixed, we can
+    # remove this one here again
+    @gen.coroutine
+    def pull_image(self, image):
+        """Pull the image, if needed
+        - pulls it unconditionally if pull_policy == 'always'
+        - otherwise, checks if it exists, and
+          - raises if pull_policy == 'never'
+          - pulls if pull_policy == 'ifnotpresent'
+        """
+        # docker wants to split repo:tag
+
+        # the part split("/")[-1] allows having an image from a custom repo
+        # with port but without tag. For example: my.docker.repo:51150/foo would not 
+        # pass this test, resulting in image=my.docker.repo:51150/foo and tag=latest
+        if ':' in image.split("/")[-1]:
+            # rsplit splits from right to left, allowing to have a custom image repo with port
+            repo, tag = image.rsplit(':', 1)
+        else:
+            repo = image
+            tag = 'latest'
+
+        if self.pull_policy.lower() == 'always':
+            # always pull
+            self.log.info("pulling %s", image)
+            yield self.docker('pull', repo, tag)
+            # done
+            return
+        try:
+            # check if the image is present
+            yield self.docker('inspect_image', image)
+        except docker.errors.NotFound:
+            if self.pull_policy == "never":
+                # never pull, raise because there is no such image
+                raise
+            elif self.pull_policy == "ifnotpresent":
+                # not present, pull it for the first time
+                self.log.info("pulling image %s", image)
+                yield self.docker('pull', repo, tag)
