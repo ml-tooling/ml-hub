@@ -248,12 +248,17 @@ class MLHubKubernetesSpawner(KubeSpawner):
     def stop(self, now=False):
         yield super().stop(now=now)
 
-        yield self.asynchronize(
-            self.api.delete_namespaced_service,
-            name=self.pod_name,
-            namespace=self.namespace
-        )
-
+        try:
+            delete_options = client.V1DeleteOptions()
+            delete_options.grace_period_seconds = self.delete_grace_period
+            yield self.asynchronize(
+                self.api.delete_namespaced_service,
+                name=self.pod_name,
+                namespace=self.namespace,
+                body=delete_options
+            )
+        except:
+            self.log.warn("Could not delete service with name {}".format(self.pod_name))
 
     
     def get_container_metadata(self) -> str:
