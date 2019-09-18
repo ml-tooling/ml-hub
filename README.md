@@ -101,6 +101,10 @@ Jupyterhub itself is configured via a `config.py` file. In case of MLHub, a defa
 - `c.DockerSpawner.prefix` and `c.DockerSpawner.name_template` - if you change those, check whether your SSH environment variables permit those names a target. Also, think about setting `c.Authenticator.username_pattern` to prevent a user having a username that is also a valid container name.
 - If you override ip and port connection settings, make sure to use Docker images that can handle those.
 
+##### Kubernetes
+
+To make modifications to the config in the Kubernetes setup, checkout the documentation for [Zero to JupyterHub with Kubernetes](https://zero-to-jupyterhub.readthedocs.io/en/latest/reference.html?highlight=service_account#singleuser). There, you can pass a config.yaml to the helm command to set values for the Jupyterhub config (see the config that is loaded and filled [here](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/images/hub/jupyterhub_config.py)). Those values will override the above described default config since we load Kubernetes jupyterhub configuration after the default config.
+
 ### Enable SSL/HTTPS
 
 MLHub will automatically start with HTTPS. If you don't provide a certificate, it will generate one during startup. This is to make routing SSH connections possible as we use nginx to handle HTTPS & SSH on the same port.

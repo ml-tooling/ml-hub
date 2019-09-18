@@ -1,4 +1,4 @@
-FROM mltooling/ssh-proxy:0.1.6
+FROM mltooling/ssh-proxy:0.1.8
 
 WORKDIR /
 
@@ -98,7 +98,9 @@ COPY docker-res/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/te
 COPY docker-res/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/admin.html
 
 RUN \
-    touch $_RESOURCES_PATH/jupyterhub_user_config.py
+    touch $_RESOURCES_PATH/jupyterhub_user_config.py && \
+    # just temp until helm chart is updated
+    cp $_RESOURCES_PATH/jupyterhub_config.py /srv/jupyterhub_config.py
 
 RUN \
    pip install --no-cache /mlhubspawner && \
@@ -127,19 +129,20 @@ ENV \
    START_NGINX=true \
    START_SSH=true \
    START_JHUB=true \
-   START_CHP=false
+   START_CHP=false \
+   EXECUTION_MODE="local"
 
 # Entrypoint must use the array notation, otherwise the entrypoint.sh script does not receive passed cmd arguments (probably because Docker will start it like this: /bin/sh -c /bin/bash /resources/docker-entrypoint.sh <cmd-args>)
 ENTRYPOINT ["/bin/bash", "/resources/docker-entrypoint.sh"]
 
-ADD docker-res/kubernetes/z2jh.py /usr/local/lib/python3.6/dist-packages/z2jh.py
-ADD docker-res/kubernetes/cull_idle_servers.py /usr/local/bin/cull_idle_servers.py
 # Kubernetes Support
-ADD docker-res/kubernetes/requirements.txt /tmp/requirements.txt
-RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
-         -r /tmp/requirements.txt
-COPY docker-res/kubernetes/jupyterhub_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_config.py
-# Debug as required in helm chart
-COPY docker-res/kubernetes/jupyterhub_config.py /srv/jupyterhub_config.py
-#COPY docker-res/kubernetes/jupyterhub_extra_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_extra_config.py
+ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/z2jh.py /usr/local/lib/python3.6/dist-packages/z2jh.py
+ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/cull_idle_servers.py /usr/local/bin/cull_idle_servers.py
+# Copy the jupyterhub config that has a lot of options to be configured
+ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/jupyterhub_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_chart_config.py
+ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/requirements.txt /tmp/requirements.txt
 
+RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
+         -r /tmp/requirements.txt && \
+         chmod u+rx /usr/local/bin/cull_idle_servers.py && \
+         chmod u+rx /usr/local/lib/python3.6/dist-packages/z2jh.py
