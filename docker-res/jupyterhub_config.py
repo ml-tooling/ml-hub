@@ -23,7 +23,8 @@ c.JupyterHub.allow_named_servers = True
 c.Spawner.port = int(os.getenv("DEFAULT_WORKSPACE_PORT", 8080))
 
 # Set default environment variables used by our ml-workspace container
-c.Spawner.environment = {"AUTHENTICATE_VIA_JUPYTER": "true", "SHUTDOWN_INACTIVE_KERNELS": "true"}
+default_env = {"AUTHENTICATE_VIA_JUPYTER": "true", "SHUTDOWN_INACTIVE_KERNELS": "true"}
+c.Spawner.environment = default_env
 
 # Workaround to prevent api problems
 c.Spawner.will_resume = True
@@ -74,6 +75,10 @@ if os.environ['EXECUTION_MODE'] == "k8s":
 
     c.JupyterHub.spawner_class = 'mlhubspawner.MLHubKubernetesSpawner'
     c.KubeSpawner.pod_name_template = c.Spawner.name_template
+
+    if not isinstance(c.KubeSpawner.environment, dict):
+        c.KubeSpawner.environment = {}
+    c.KubeSpawner.environment.update(default_env)
 
 # Add nativeauthenticator-specific templates
 if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
