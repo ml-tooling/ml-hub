@@ -4,11 +4,8 @@ printf "Starting ML Hub\n"
 
 incoming_args="$@"
 echo "$incoming_args"
-config_file=$_RESOURCES_PATH/jupyterhub_config.py
 execution_mode=${EXECUTION_MODE:-local}
 if [ "$execution_mode" == "k8s" ]; then
-  config_file=$_RESOURCES_PATH/kubernetes/jupyterhub_config.py
-
   # make changes to nginx so that it works in Kubernetes as well
   # TODO: build into run_nginx.py script
   sed -i 's/resolver 127.0.0.11/resolver 10.96.0.10/g' /etc/nginx/nginx.conf
@@ -46,7 +43,7 @@ function start_ssh {
 function start_jupyterhub {
     # Start server
     echo "Start JupyterHub"
-    jupyterhub -f $config_file &
+    jupyterhub -f $_RESOURCES_PATH/jupyterhub_config.py &
 }
 
 function start_http_proxy {

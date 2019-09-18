@@ -1,4 +1,5 @@
 proxy:
+  # the secret token should be changed in your deployment ;)
   secretToken: 4bda3bd04f6ae5ia28368bf7b5514712351fd9cf8edb09ce9b26f73500f8aa54b
   chp:
     image:
@@ -8,13 +9,10 @@ proxy:
 singleuser:
   storage:
     type: none
-  image: 
-    name: mltooling/ml-workspace
-    tag: 0.6.1
-  startTimeout: 600
-  cmd:
   uid: 0
   fsGid: 0
+  networkPolicy:
+    enabled: true
 
 hub:
   db:
@@ -28,10 +26,6 @@ hub:
   allowNamedServers: True
   extraConfig:
      template_paths: "c.JupyterHub.template_paths = ['/usr/local/lib/python3.6/dist-packages/nativeauthenticator/templates/']"
-     #port: "c.Spawner.port = 8090"
-  #extraEnv:
-#    PROXY_PUBLIC_SERVICE_PORT: 8091
-  #  EXECUTION_MODE: "k8s"
 
 auth:
   type: custom

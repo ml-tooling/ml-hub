@@ -1,5 +1,5 @@
 """
-DockerSpawner configuration file for jupyterhub.
+Basic configuration file for jupyterhub.
 """
 
 import os
@@ -31,22 +31,22 @@ c.Spawner.will_resume = True
 # --- Spawner-specific ----
 c.JupyterHub.spawner_class = 'mlhubspawner.MLHubDockerSpawner' # override in your config if you want to have a different spawner. If it is the or inherits from DockerSpawner, the c.DockerSpawner config can have an effect.
 
-c.DockerSpawner.image = "mltooling/ml-workspace:0.8.2"
-c.MLHubDockerSpawner.workspace_images = [c.DockerSpawner.image, "mltooling/ml-workspace-gpu:0.8.1", "mltooling/ml-workspace-r:0.8.1"]
-c.DockerSpawner.notebook_dir = '/workspace'
+c.Spawner.image = "mltooling/ml-workspace:0.8.2"
+c.Spawner.workspace_images = [c.Spawner.image, "mltooling/ml-workspace-gpu:0.8.2", "mltooling/ml-workspace-r:0.8.2"]
+c.Spawner.notebook_dir = '/workspace'
 
 # Connect containers to this Docker network
-c.DockerSpawner.use_internal_ip = True
-c.DockerSpawner.extra_host_config = { 'shm_size': '256m' }
+c.Spawner.use_internal_ip = True
+c.Spawner.extra_host_config = { 'shm_size': '256m' }
 
-c.DockerSpawner.prefix = 'ws' 
-c.DockerSpawner.name_template = '{prefix}-{username}-hub{servername}' # override in your config when you want to have a different name schema. Also consider changing c.Authenticator.username_pattern and check the environment variables to permit ssh connection
+c.Spawner.prefix = 'ws' 
+c.Spawner.name_template = c.Spawner.prefix + '-{username}-hub{servername}' # override in your config when you want to have a different name schema. Also consider changing c.Authenticator.username_pattern and check the environment variables to permit ssh connection
 
 # Don't remove containers once they are stopped - persist state
-c.DockerSpawner.remove_containers = False
+c.Spawner.remove_containers = False
 
-c.DockerSpawner.start_timeout = 600 # should remove errors related to pulling Docker images (see https://github.com/jupyterhub/dockerspawner/issues/293)
-c.DockerSpawner.http_timeout = 60
+c.Spawner.start_timeout = 600 # should remove errors related to pulling Docker images (see https://github.com/jupyterhub/dockerspawner/issues/293)
+c.Spawner.http_timeout = 60
 
 # --- Authenticator ---
 c.Authenticator.admin_users = {"admin"} # override in your config when needed, for example if you use a different authenticator (e.g. set Github username if you use GithubAuthenticator)
@@ -66,6 +66,14 @@ c.JupyterHub.authenticator_class = NATIVE_AUTHENTICATOR_CLASS # override in your
     # > c.DockerSpawner.extra_create_kwargs.update({'labels': {'foo': 'bar'}})
 # See https://traitlets.readthedocs.io/en/stable/config.html#configuration-files-inheritance
 load_subconfig("{}/jupyterhub_user_config.py".format(os.getenv("_RESOURCES_PATH")))
+
+# In Kubernetes mode, load the Kubernetes Jupyterhub config that can be configured via a config.yaml.
+# Those values will override the values set above, as it is loaded afterwards.
+if os.environ['EXECUTION_MODE'] == "k8s":
+    load_subconfig("{}/kubernetes/jupyterhub_chart_config.py".format(os.getenv("_RESOURCES_PATH")))
+
+    c.JupyterHub.spawner_class = 'mlhubspawner.MLHubKubernetesSpawner'
+    c.KubeSpawner.pod_name_template = c.Spawner.name_template
 
 # Add nativeauthenticator-specific templates
 if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
