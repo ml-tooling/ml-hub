@@ -46,7 +46,7 @@ c.Spawner.name_template = c.Spawner.prefix + '-{username}-hub{servername}' # ove
 c.Spawner.remove_containers = False
 
 c.Spawner.start_timeout = 600 # should remove errors related to pulling Docker images (see https://github.com/jupyterhub/dockerspawner/issues/293)
-c.Spawner.http_timeout = 60
+c.Spawner.http_timeout = 120
 
 # --- Authenticator ---
 c.Authenticator.admin_users = {"admin"} # override in your config when needed, for example if you use a different authenticator (e.g. set Github username if you use GithubAuthenticator)
