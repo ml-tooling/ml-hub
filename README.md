@@ -103,7 +103,7 @@ Jupyterhub itself is configured via a `config.py` file. In case of MLHub, a defa
 
 ##### Kubernetes
 
-To make modifications to the config in the Kubernetes setup, checkout the documentation for [Zero to JupyterHub with Kubernetes](https://zero-to-jupyterhub.readthedocs.io/en/latest/reference.html?highlight=service_account#singleuser). There, you can pass a config.yaml to the helm command to set values for the Jupyterhub config (see the config that is loaded and filled [here](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/images/hub/jupyterhub_config.py)). Those values will override the above described default config since the Kubernetes jupyterhub configuration is loaded after the default config.
+To make modifications to the config in the Kubernetes setup, checkout the documentation for [Zero to JupyterHub with Kubernetes](https://zero-to-jupyterhub.readthedocs.io/en/latest/reference.html?highlight=service_account#singleuser). There, you can pass a config.yaml to the helm command to set values for the Jupyterhub config (see the config that is loaded and filled [here](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/images/hub/jupyterhub_config.py)). Those values will override the above described default config since we load Kubernetes jupyterhub configuration after the default config.
 
 ### Enable SSL/HTTPS
 
