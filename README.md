@@ -60,6 +60,8 @@ For Kubernetes deployment, we forked and modified [zero-to-jupyterhub-k8s](https
 
 ### Configuration
 
+In the default config, a user named `admin` can register and access the hub. If you use a different authenticator, you might want to set a different user as initial admin user as well.
+
 #### Environment Variables
 
 MLHub is based on [SSH Proxy](https://github.com/ml-tooling/ssh-proxy). Check out SSH Proxy for ssh-related configurations.
@@ -149,6 +151,8 @@ We have the three following scenarios in mind for the hub and want to point them
 
 #### Multi-user hub without self-service
 
+In this scenario, the idea is that just the admin user exists and can access the hub. The admin user then creates workspaces and distributes them to users.
+
 Go to the admin panel (1) and create a new user (2). 
 You can then start the standard workspace for that user or create a new workspace (see second image).
 Via the ssh access button (3), you can send the user a command to connect to the started workspace via ssh.
@@ -158,11 +162,15 @@ Via the ssh access button (3), you can send the user a command to connect to the
 
 #### Multi-user hub with self-service
 
-It is like the above described scenario, except that user can create their own named workspaces. To give users access, just authorize registered users.
+Give also non-admin users the permission to create named workspaces.
+
+To give users access, the admin just has to authorize registered users.
 
 <img width=100% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/master/docs/images/authorize-users.png">
 
 #### User hub
+
+Users can login and get a default workspace. No additional workspaces can be created.
 
 To let users login and get a default workspace but not let them create new servers, just set the config option `c.JupyterHub.allow_named_servers` to `False` when starting the hub. Note that this also disables the ability for starting named servers for the admin. Currently, the workaround would be to have a second hub container just for the admin.
 
