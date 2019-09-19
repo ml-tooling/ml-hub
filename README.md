@@ -29,7 +29,7 @@ MLHub is based on [Jupyterhub](https://github.com/jupyterhub/jupyterhub). MLHub 
 
 ## Highlights
 
-- 💫 Create, manage, and access Jupyter notebooks.
+- 💫 Create, manage, and access Jupyter notebooks. Use it as an admin to distribute workspaces to other users, use it in self-service mode, or both.
 - 🖊️ Set configuration parameters such as CPU-limits for started workspaces. 
 - 🖥 Access additional tools within the started workspaces by having secured routes.
 - 🎛 Tunnel SSH connections to workspace containers.
@@ -143,7 +143,32 @@ valuable if it's shared publicly so that more people can benefit from it.
 
 ## Features
 
-_WIP: Describe features with screenshots_
+We have the three following scenarios in mind for the hub and want to point them out as a guideline. These three scenarios are thought of as an inspiration and are based on the default configuration by using the [native-authenticator](https://github.com/ml-tooling/nativeauthenticator). If you start the hub with a different authenticator or change other settings, you might want to or have to do things differently.
+
+### Scenarios
+
+#### Multi-user hub without self-service
+
+Go to the admin panel (1) and create a new user (2). 
+You can then start the standard workspace for that user or create a new workspace (see second image).
+Via the ssh access button (3), you can send the user a command to connect to the started workspace via ssh.
+<img width=50% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/masters/docs/images/admin-panel.png">
+<img width=50% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/masters/docs/images/create-workspace.png">
+
+#### Multi-user hub with self-service
+
+It is like the above described scenario, except that user can create their own named workspaces. To give users access, just authorize registered users.
+<img width=50% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/masters/docs/images/authorize-users.png">
+
+#### User hub
+
+To let users login and get a default workspace but not let them create new servers, just set the config option `c.JupyterHub.allow_named_servers` to `False` when starting the hub. Note that this also disables the ability for starting named servers for the admin. Currently, the workaround would be to have a second hub container just for the admin.
+
+### Named Server Options Form
+
+When named servers are allowed and the hub is started with the default config, you can create named servers. When doing so, you can set some configurations for the new workspace, such as resource limitations or mounting GPUs. Mounting GPUs is not possible in Kuberntes mode currently.
+The "Days to live" flag is purely informational currently and can be seen in the admin view; it should help admins to keep an overview of workspaces.
+<img width=50% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/masters/docs/images/create-workspace-options.png">
 
 ## Contribution
 
