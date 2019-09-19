@@ -152,13 +152,15 @@ We have the three following scenarios in mind for the hub and want to point them
 Go to the admin panel (1) and create a new user (2). 
 You can then start the standard workspace for that user or create a new workspace (see second image).
 Via the ssh access button (3), you can send the user a command to connect to the started workspace via ssh.
-<img width=50% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/masters/docs/images/admin-panel.png">
-<img width=50% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/masters/docs/images/create-workspace.png">
+
+<img width=50% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/master/docs/images/admin-panel.png">
+<img width=50% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/master/docs/images/create-workspace.png">
 
 #### Multi-user hub with self-service
 
 It is like the above described scenario, except that user can create their own named workspaces. To give users access, just authorize registered users.
-<img width=50% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/masters/docs/images/authorize-users.png">
+
+<img width=50% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/master/docs/images/authorize-users.png">
 
 #### User hub
 
@@ -168,7 +170,8 @@ To let users login and get a default workspace but not let them create new serve
 
 When named servers are allowed and the hub is started with the default config, you can create named servers. When doing so, you can set some configurations for the new workspace, such as resource limitations or mounting GPUs. Mounting GPUs is not possible in Kuberntes mode currently.
 The "Days to live" flag is purely informational currently and can be seen in the admin view; it should help admins to keep an overview of workspaces.
-<img width=50% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/masters/docs/images/create-workspace-options.png">
+
+<img width=50% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/master/docs/images/create-workspace-options.png">
 
 ## Contribution
 
