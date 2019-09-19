@@ -50,7 +50,7 @@ docker run \
     --name mlhub \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v jupyterhub_data:/data \
-    ml-hub:latest
+    mltooling/ml-hub:latest
 ```
 
 To persist the hub data, such as started workspaces and created users, mount a directory to `/data` (`-v`).
