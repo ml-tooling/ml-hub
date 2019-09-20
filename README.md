@@ -29,7 +29,7 @@ MLHub is based on [Jupyterhub](https://github.com/jupyterhub/jupyterhub). MLHub 
 
 ## Highlights
 
-- 💫 Create, manage, and access Jupyter notebooks.
+- 💫 Create, manage, and access Jupyter notebooks. Use it as an admin to distribute workspaces to other users, use it in self-service mode, or both.
 - 🖊️ Set configuration parameters such as CPU-limits for started workspaces. 
 - 🖥 Access additional tools within the started workspaces by having secured routes.
 - 🎛 Tunnel SSH connections to workspace containers.
@@ -50,7 +50,7 @@ docker run \
     --name mlhub \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v jupyterhub_data:/data \
-    ml-hub:latest
+    mltooling/ml-hub:latest
 ```
 
 To persist the hub data, such as started workspaces and created users, mount a directory to `/data` (`-v`).
@@ -59,6 +59,8 @@ A name (`--name`) should be set for the mlhub container, since we let the worksp
 For Kubernetes deployment, we forked and modified [zero-to-jupyterhub-k8s](https://github.com/jupyterhub/zero-to-jupyterhub-k8s) which you can find [here](https://github.com/ml-tooling/zero-to-mlhub-k8s).
 
 ### Configuration
+
+In the default config, a user named `admin` can register and access the hub. If you use a different authenticator, you might want to set a different user as initial admin user as well.
 
 #### Environment Variables
 
@@ -89,10 +91,12 @@ MLHub is based on [SSH Proxy](https://github.com/ml-tooling/ssh-proxy). Check ou
     </tr>
     <tr>
         <td>START_CHP</td>
-        <td>Start the Jupyterhub proxy process separately (The hub should not start the proxy itself, which can be configured via the Jupyterhub config file. This option is built-in to work with <a href="https://github.com/ml-tooling/zero-to-mlhub-k8s"> zero-to-mlhub-k8s</a>, where the image is also used as the CHP image.</td>
+        <td>Start the Jupyterhub proxy process separately (The hub should not start the proxy itself, which can be configured via the Jupyterhub config file. This option is built-in to work with <a href="https://github.com/ml-tooling/zero-to-mlhub-k8s"> zero-to-mlhub-k8s</a>, where the image is also used as the Configurable-Http-Proxy (CHP) image. Args passed to the container are passed to the chp-start command.</td>
         <td>false</td>
     </tr>
 </table>
+
+> ℹ️ _Via the START_* environment variables, you can define what is started within the container. This is since the mlhub image is used in our Kubernetes setup for both, the hub and the proxy container. We did not want to break those functionalities into different images for now._
 
 #### Jupyterhub Config
 
@@ -103,7 +107,8 @@ Jupyterhub itself is configured via a `config.py` file. In case of MLHub, a defa
 
 ##### Kubernetes
 
-To make modifications to the config in the Kubernetes setup, checkout the documentation for [Zero to JupyterHub with Kubernetes](https://zero-to-jupyterhub.readthedocs.io/en/latest/reference.html?highlight=service_account#singleuser). There, you can pass a config.yaml to the helm command to set values for the Jupyterhub config (see the config that is loaded and filled [here](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/images/hub/jupyterhub_config.py)). Those values will override the above described default config since we load Kubernetes jupyterhub configuration after the default config.
+To make modifications to the config in the Kubernetes setup, checkout the documentation for [Zero to JupyterHub with Kubernetes](https://zero-to-jupyterhub.readthedocs.io/en/latest/reference.html?highlight=service_account#singleuser). Our hub is compatible with their approach and so you can pass a config.yaml to the helm command to set values for the Jupyterhub config. We modified a few default values compared to the original repository.
+[This file](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/jupyterhub/values.yaml) contains the default values for the helm deployment, which can be overriden by your own config.yaml. The passed config is used by [the Jupyterhub config](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/images/hub/jupyterhub_config.py), which we load subsequently to the Jupyterhub config you find in this repo. Hence, the "Zero to JupyterHub with Kubernetes" config overrides the above described default config as it is loaded after our default config file. In short what happens: This repo's hub config is loaded, then the "Zero to JupyterHub with Kubernetes" config, which values can be modified via a config.yaml.
 
 ### Enable SSL/HTTPS
 
@@ -143,7 +148,41 @@ valuable if it's shared publicly so that more people can benefit from it.
 
 ## Features
 
-_WIP: Describe features with screenshots_
+We have the three following scenarios in mind for the hub and want to point them out as a guideline. These three scenarios are thought of as an inspiration and are based on the default configuration by using the [native-authenticator](https://github.com/ml-tooling/nativeauthenticator). If you start the hub with a different authenticator or change other settings, you might want to or have to do things differently.
+
+### Scenarios
+
+#### Multi-user hub without self-service
+
+In this scenario, the idea is that just the admin user exists and can access the hub. The admin user then creates workspaces and distributes them to users.
+
+Go to the admin panel (1) and create a new user (2). 
+You can then start the standard workspace for that user or create a new workspace (see second image).
+Via the ssh access button (3), you can send the user a command to connect to the started workspace via ssh.
+
+<img width=100% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/master/docs/images/admin-panel.png">
+<img width=100% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/master/docs/images/create-workspace.png">
+
+#### Multi-user hub with self-service
+
+Give also non-admin users the permission to create named workspaces.
+
+To give users access, the admin just has to authorize registered users.
+
+<img width=100% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/master/docs/images/authorize-users.png">
+
+#### User hub
+
+Users can login and get a default workspace. No additional workspaces can be created.
+
+To let users login and get a default workspace but not let them create new servers, just set the config option `c.JupyterHub.allow_named_servers` to `False` when starting the hub. Note that this also disables the ability for starting named servers for the admin. Currently, the workaround would be to have a second hub container just for the admin.
+
+### Named Server Options Form
+
+When named servers are allowed and the hub is started with the default config, you can create named servers. When doing so, you can set some configurations for the new workspace, such as resource limitations or mounting GPUs. Mounting GPUs is not possible in Kuberntes mode currently.
+The "Days to live" flag is purely informational currently and can be seen in the admin view; it should help admins to keep an overview of workspaces.
+
+<img width=100% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/master/docs/images/create-workspace-options.png">
 
 ## Contribution
 

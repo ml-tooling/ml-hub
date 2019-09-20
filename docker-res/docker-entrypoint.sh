@@ -2,6 +2,7 @@
 
 printf "Starting ML Hub\n"
 
+# $@ corresponds to the incoming script arguments
 incoming_args="$@"
 echo "$incoming_args"
 execution_mode=${EXECUTION_MODE:-local}
@@ -48,8 +49,6 @@ function start_jupyterhub {
 
 function start_http_proxy {
     echo "Start configurable-http-proxy"
-    # $@ corresponds to the incoming script arguments
-    echo "$incoming_args"
     configurable-http-proxy $incoming_args &
 }
 
