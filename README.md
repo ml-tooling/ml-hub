@@ -91,10 +91,12 @@ MLHub is based on [SSH Proxy](https://github.com/ml-tooling/ssh-proxy). Check ou
     </tr>
     <tr>
         <td>START_CHP</td>
-        <td>Start the Jupyterhub proxy process separately (The hub should not start the proxy itself, which can be configured via the Jupyterhub config file. This option is built-in to work with <a href="https://github.com/ml-tooling/zero-to-mlhub-k8s"> zero-to-mlhub-k8s</a>, where the image is also used as the CHP image.</td>
+        <td>Start the Jupyterhub proxy process separately (The hub should not start the proxy itself, which can be configured via the Jupyterhub config file. This option is built-in to work with <a href="https://github.com/ml-tooling/zero-to-mlhub-k8s"> zero-to-mlhub-k8s</a>, where the image is also used as the Configurable-Http-Proxy (CHP) image. Args passed to the container are passed to the chp-start command.</td>
         <td>false</td>
     </tr>
 </table>
+
+> ℹ️ _Via the START_* environment variables, you can define what is started within the container. This is since the mlhub image is used in our Kubernetes setup for both, the hub and the proxy container. We did not want to break those functionalities into different images for now._
 
 #### Jupyterhub Config
 
