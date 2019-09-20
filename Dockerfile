@@ -2,6 +2,9 @@ FROM mltooling/ssh-proxy:0.1.8
 
 WORKDIR /
 
+ENV \
+  DEBIAN_FRONTEND="noninteractive"
+
 # Install Basics
 RUN \
    apt-get update && \
@@ -68,19 +71,12 @@ RUN \
    python3 -m pip install --no-cache jupyterhub && \
    clean-layer.sh
 
-# Install git as needed for installing pip repos from git
-# RUN \
-#    apt-get update && \
-#    apt-get install -y git && \
-#    clean-layer.sh
-
-# Set Debian Frontend to 'noninteractive' so that sslh does not ask for mode during installation
-ENV \
-  DEBIAN_FRONTEND="noninteractive"
 RUN \
    apt-get update && \
    apt-get install -y --no-install-recommends sslh && \
    clean-layer.sh
+
+### END BASICS ###
 
 RUN \
    pip install --no-cache dockerspawner && \
@@ -88,14 +84,31 @@ RUN \
    pip install --no-cache git+https://github.com/ryanlovett/imagespawner && \
    clean-layer.sh
 
-COPY docker-res/nginx.conf /etc/nginx/nginx.conf
-COPY docker-res/scripts $_RESOURCES_PATH/scripts
-COPY docker-res/docker-entrypoint.sh $_RESOURCES_PATH/docker-entrypoint.sh
-COPY docker-res/mlhubspawner /mlhubspawner
-COPY docker-res/logo.png /usr/local/share/jupyterhub/static/images/jupyter.png
-COPY docker-res/jupyterhub_config.py $_RESOURCES_PATH/jupyterhub_config.py
-COPY docker-res/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/templates/home.html
-COPY docker-res/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/admin.html
+### INCUBATION ZONE ### 
+
+# Kubernetes Support
+ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/z2jh.py /usr/local/lib/python3.6/dist-packages/z2jh.py
+ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/cull_idle_servers.py /usr/local/bin/cull_idle_servers.py
+# Copy the jupyterhub config that has a lot of options to be configured
+ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/jupyterhub_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_chart_config.py
+ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/requirements.txt /tmp/requirements.txt
+
+RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
+         -r /tmp/requirements.txt && \
+         chmod u+rx /usr/local/bin/cull_idle_servers.py && \
+         chmod u+rx /usr/local/lib/python3.6/dist-packages/z2jh.py
+
+### END INCUBATION ZONE ###
+
+### CONFIGURATION ###
+
+COPY resources/nginx.conf /etc/nginx/nginx.conf
+COPY resources/scripts $_RESOURCES_PATH/scripts
+COPY resources/docker-entrypoint.sh $_RESOURCES_PATH/docker-entrypoint.sh
+COPY resources/mlhubspawner /mlhubspawner
+COPY resources/logo.png /usr/local/share/jupyterhub/static/images/jupyter.png
+COPY resources/jupyterhub_config.py $_RESOURCES_PATH/jupyterhub_config.py
+COPY resources/jupyterhub-mod/template-home.html resources/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/
 
 RUN \
     touch $_RESOURCES_PATH/jupyterhub_user_config.py && \
@@ -132,17 +145,7 @@ ENV \
    START_CHP=false \
    EXECUTION_MODE="local"
 
+### END CONFIGURATION ###
+
 # Entrypoint must use the array notation, otherwise the entrypoint.sh script does not receive passed cmd arguments (probably because Docker will start it like this: /bin/sh -c /bin/bash /resources/docker-entrypoint.sh <cmd-args>)
 ENTRYPOINT ["/bin/bash", "/resources/docker-entrypoint.sh"]
-
-# Kubernetes Support
-ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/z2jh.py /usr/local/lib/python3.6/dist-packages/z2jh.py
-ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/cull_idle_servers.py /usr/local/bin/cull_idle_servers.py
-# Copy the jupyterhub config that has a lot of options to be configured
-ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/jupyterhub_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_chart_config.py
-ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/requirements.txt /tmp/requirements.txt
-
-RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
-         -r /tmp/requirements.txt && \
-         chmod u+rx /usr/local/bin/cull_idle_servers.py && \
-         chmod u+rx /usr/local/lib/python3.6/dist-packages/z2jh.py
