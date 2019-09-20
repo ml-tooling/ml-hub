@@ -3,7 +3,8 @@ FROM mltooling/ssh-proxy:0.1.8
 WORKDIR /
 
 ENV \
-  DEBIAN_FRONTEND="noninteractive"
+  DEBIAN_FRONTEND="noninteractive" \
+  _SSL_RESOURCES_PATH=$_RESOURCES_PATH/ssl
 
 # Install Basics
 RUN \
@@ -27,6 +28,7 @@ RUN \
         echo nodejs=8.10.0~dfsg-2ubuntu0.2 nodejs-dev=8.10.0~dfsg-2ubuntu0.2 npm; \
       fi') \
       && \
+   # Cleanup
    clean-layer.sh
 
 # Add tini
@@ -61,23 +63,30 @@ RUN \
     # Cleanup
     clean-layer.sh
 
+ENV PATH=/usr/local/openresty/nginx/sbin:$PATH
+
 # Install nodejs & npm for JupyterHub's configurable-http-proxy
 RUN \
    apt-get update && \
-   #apt-get install -y curl && \
+   # TODO update to node 11?
    curl -sL https://deb.nodesource.com/setup_10.x | bash - && \
    apt-get install -y nodejs && \
+   # Cleanup
    clean-layer.sh
 
 # Install JupyterHub
 RUN \
    npm install -g configurable-http-proxy && \
    python3 -m pip install --no-cache jupyterhub && \
+   # Cleanup
    clean-layer.sh
 
+# Install SSLH for SSH/HTTP multiplexing
+# TODO: is this still required?
 RUN \
    apt-get update && \
    apt-get install -y --no-install-recommends sslh && \
+   # Cleanup
    clean-layer.sh
 
 ### END BASICS ###
@@ -86,6 +95,15 @@ RUN \
    pip install --no-cache dockerspawner && \
    pip install --no-cache git+https://github.com/ml-tooling/nativeauthenticator@8ba7a1a4757101c723e59e78d928c2264ec3c973 && \
    pip install --no-cache git+https://github.com/ryanlovett/imagespawner && \
+   # Cleanup
+   clean-layer.sh
+
+# Install our custom spawner
+RUN \
+   pip install --no-cache /mlhubspawner && \
+   rm -r /mlhubspawner && \
+   pip install tornado==5.1.1 && \
+   # Cleanup
    clean-layer.sh
 
 ### INCUBATION ZONE ### 
@@ -110,29 +128,19 @@ COPY resources/nginx.conf /etc/nginx/nginx.conf
 COPY resources/scripts $_RESOURCES_PATH/scripts
 COPY resources/docker-entrypoint.sh $_RESOURCES_PATH/docker-entrypoint.sh
 COPY resources/mlhubspawner /mlhubspawner
-COPY resources/logo.png /usr/local/share/jupyterhub/static/images/jupyter.png
+# Jupyterhub Configuration
 COPY resources/jupyterhub_config.py $_RESOURCES_PATH/jupyterhub_config.py
-COPY resources/jupyterhub-mod/template-home.html resources/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/
+COPY resources/logo.png /usr/local/share/jupyterhub/static/images/jupyter.png
+COPY resources/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/templates/home.html
+COPY resources/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/admin.html
 
 RUN \
-    touch $_RESOURCES_PATH/jupyterhub_user_config.py && \
-    # just temp until helm chart is updated
-    cp $_RESOURCES_PATH/jupyterhub_config.py /srv/jupyterhub_config.py
-
-RUN \
-   pip install --no-cache /mlhubspawner && \
-   rm -r /mlhubspawner && \
-   pip install tornado==5.1.1 && \
-   clean-layer.sh
-
-ENV \
-   _SSL_RESOURCES_PATH=$_RESOURCES_PATH/ssl \
-   PATH=/usr/local/openresty/nginx/sbin:$PATH
-
-RUN \
-  mkdir $_SSL_RESOURCES_PATH && chmod ug+rwx $_SSL_RESOURCES_PATH && \
-  chmod -R ug+rxw $_RESOURCES_PATH/scripts && \
-  chmod ug+rwx $_RESOURCES_PATH/docker-entrypoint.sh
+   touch $_RESOURCES_PATH/jupyterhub_user_config.py && \
+   # TODO: just temp until helm chart is updated
+   cp $_RESOURCES_PATH/jupyterhub_config.py /srv/jupyterhub_config.py && \
+   mkdir $_SSL_RESOURCES_PATH && chmod ug+rwx $_SSL_RESOURCES_PATH && \
+   chmod -R ug+rxw $_RESOURCES_PATH/scripts && \
+   chmod ug+rwx $_RESOURCES_PATH/docker-entrypoint.sh
 
 # Set python3 to default python. Needed for the ssh-proxy scripts
 RUN \
