@@ -29,6 +29,10 @@ RUN \
       && \
    clean-layer.sh
 
+# Add tini
+RUN wget --quiet https://github.com/krallin/tini/releases/download/v0.18.0/tini -O /tini && \
+    chmod +x /tini
+
 # Install resty version of nginx
 ## We must build it ourselves as we need the newest version to tunnel SSH and HTTPS over the same port
 RUN \
@@ -147,5 +151,8 @@ ENV \
 
 ### END CONFIGURATION ###
 
-# Entrypoint must use the array notation, otherwise the entrypoint.sh script does not receive passed cmd arguments (probably because Docker will start it like this: /bin/sh -c /bin/bash /resources/docker-entrypoint.sh <cmd-args>)
-ENTRYPOINT ["/bin/bash", "/resources/docker-entrypoint.sh"]
+# use global option with tini to kill full process groups: https://github.com/krallin/tini#process-group-killing
+ENTRYPOINT ["/tini", "-g", "--"]
+
+# Entrypoint/CMD must use the array notation, otherwise the entrypoint.sh script does not receive passed cmd arguments (probably because Docker will start it like this: /bin/sh -c /bin/bash /resources/docker-entrypoint.sh <cmd-args>)
+CMD ["python", "/resources/docker-entrypoint.sh"] 
