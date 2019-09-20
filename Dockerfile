@@ -196,3 +196,6 @@ ENTRYPOINT ["/tini", "-g", "--"]
 
 # Entrypoint/CMD must use the array notation, otherwise the entrypoint.sh script does not receive passed cmd arguments (probably because Docker will start it like this: /bin/sh -c /bin/bash /resources/docker-entrypoint.sh <cmd-args>)
 CMD ["python", "/resources/docker-entrypoint.sh"] 
+
+EXPOSE 8091
+###
