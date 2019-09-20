@@ -39,6 +39,8 @@ MLHub is based on [Jupyterhub](https://github.com/jupyterhub/jupyterhub). MLHub 
 ### Prerequisites
 
 - Docker
+- Kubernetes (for Kubernetes modes)
+- Helm (for easy deployment via our [helm chart](https://github.com/ml-tooling/ml-hub/releases/download/0.1.4/mlhub-chart-0.1.4.tgz))
 
 Most parts will be identical to the configuration of Jupyterhub 1.0.0. One of the things that are different is that ssl will not be activated on proxy or hub-level, but on our nginx proxy.
 
