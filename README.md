@@ -55,8 +55,8 @@ docker run \
     mltooling/ml-hub:latest
 ```
 
-To persist the hub data, such as started workspaces and created users, mount a directory to `/data` (`-v`).
-A name (`--name`) should be set for the mlhub container, since we let the workspace container connect to the hub not via its docker id but its docker name. This way, the workspaces can still connect to the hub in case it was deleted and re-created (for example when updated).
+To persist the hub data, such as started workspaces and created users, mount a directory to `/data`.
+A name (`--name`) should be set for the mlhub container, since we let the workspace container connect to the hub not via its docker id but its docker name. This way, the workspaces can still connect to the hub in case it was deleted and re-created (for example when the hub was updated).
 
 For Kubernetes deployment, we forked and modified [zero-to-jupyterhub-k8s](https://github.com/jupyterhub/zero-to-jupyterhub-k8s) which you can find [here](https://github.com/ml-tooling/zero-to-mlhub-k8s).
 
@@ -67,7 +67,7 @@ In the default config, a user named `admin` can register and access the hub. If 
 #### Environment Variables
 
 MLHub is based on [SSH Proxy](https://github.com/ml-tooling/ssh-proxy). Check out SSH Proxy for ssh-related configurations.
-
+Here are the additional environment variables for the hub:
 <table>
     <tr>
         <th>Variable</th>
@@ -98,7 +98,7 @@ MLHub is based on [SSH Proxy](https://github.com/ml-tooling/ssh-proxy). Check ou
     </tr>
 </table>
 
-> ℹ️ _Via the START_* environment variables, you can define what is started within the container. This is since the mlhub image is used in our Kubernetes setup for both, the hub and the proxy container. We did not want to break those functionalities into different images for now._
+> ℹ️ _Via the START\_* environment variables, you can define what is started within the container. It's like this since the mlhub image is used in our Kubernetes setup for both, the hub and the proxy container. We did not want to break those functionalities into different images for now._
 
 #### Jupyterhub Config
 
@@ -110,7 +110,7 @@ Jupyterhub itself is configured via a `config.py` file. In case of MLHub, a defa
 ##### Kubernetes
 
 To make modifications to the config in the Kubernetes setup, checkout the documentation for [Zero to JupyterHub with Kubernetes](https://zero-to-jupyterhub.readthedocs.io/en/latest/reference.html?highlight=service_account#singleuser). Our hub is compatible with their approach and so you can pass a config.yaml to the helm command to set values for the Jupyterhub config. We modified a few default values compared to the original repository.
-[This file](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/jupyterhub/values.yaml) contains the default values for the helm deployment, which can be overriden by your own config.yaml. The passed config is used by [the Jupyterhub config](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/images/hub/jupyterhub_config.py), which we load subsequently to the Jupyterhub config you find in this repo. Hence, the "Zero to JupyterHub with Kubernetes" config overrides the above described default config as it is loaded after our default config file. In short what happens: This repo's hub config is loaded, then the "Zero to JupyterHub with Kubernetes" config, which values can be modified via a config.yaml.
+[This file](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/jupyterhub/values.yaml) contains the default values for the helm deployment. The passed config is used by [the Jupyterhub config](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/images/hub/jupyterhub_config.py), which we load subsequently to the Jupyterhub config you find in this repo. Hence, the "Zero to JupyterHub with Kubernetes" config overrides the above described default config as it is loaded after our default config file. In short what happens: This repo's hub config is loaded, then the "Zero to JupyterHub with Kubernetes" config, where values can be modified via a config.yaml.
 
 ### Enable SSL/HTTPS
 
@@ -150,7 +150,7 @@ valuable if it's shared publicly so that more people can benefit from it.
 
 ## Features
 
-We have the three following scenarios in mind for the hub and want to point them out as a guideline. These three scenarios are thought of as an inspiration and are based on the default configuration by using the [native-authenticator](https://github.com/ml-tooling/nativeauthenticator). If you start the hub with a different authenticator or change other settings, you might want to or have to do things differently.
+We have the three following scenarios in mind for the hub and want to point them out as a guideline. These three scenarios are thought of as an inspiration and are based on the default configuration by using [native-authenticator](https://github.com/ml-tooling/nativeauthenticator) as the hub authenticator. If you start the hub with a different authenticator or change other settings, you might want to or have to do things differently.
 
 ### Scenarios
 
