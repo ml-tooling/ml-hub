@@ -151,6 +151,46 @@ ENV \
 
 ### END CONFIGURATION ###
 
+ARG ARG_BUILD_DATE="unknown"
+ARG ARG_VCS_REF="unknown"
+ARG ARG_HUB_VERSION="unknown"
+ENV HUB_VERSION=$ARG_HUB_VERSION
+
+# Overwrite & add common labels
+LABEL \
+    "maintainer"="mltooling.team@gmail.com" \
+    # Kubernetes Labels
+    "io.k8s.description"="Multi-user hub which spawns and manages workspace instances." \
+    "io.k8s.display-name"="Machine Learning Hub" \
+    # Openshift labels: https://docs.okd.io/latest/creating_images/metadata.html
+    "io.openshift.expose-services"="8080:http, 5901:xvnc" \
+    "io.openshift.non-scalable"="true" \
+    "io.openshift.tags"="workspace, machine learning, vnc, ubuntu, xfce" \
+    "io.openshift.min-memory"="1Gi" \
+    # Open Container labels: https://github.com/opencontainers/image-spec/blob/master/annotations.md
+    "org.opencontainers.image.title"="Machine Learning Hub" \
+    "org.opencontainers.image.description"="Multi-user hub which spawns and manages workspace instances." \
+    "org.opencontainers.image.documentation"="https://github.com/ml-tooling/ml-hub" \
+    "org.opencontainers.image.url"="https://github.com/ml-tooling/ml-hub" \
+    "org.opencontainers.image.source"="https://github.com/ml-tooling/ml-hub" \
+    "org.opencontainers.image.licenses"="Apache-2.0" \
+    "org.opencontainers.image.version"=$HUB_VERSION \
+    "org.opencontainers.image.vendor"="ML Tooling" \
+    "org.opencontainers.image.authors"="Benjamin Raehtlein & Lukas Masuch" \
+    "org.opencontainers.image.revision"=$ARG_VCS_REF \
+    "org.opencontainers.image.created"=$ARG_BUILD_DATE \ 
+    # Label Schema Convention (deprecated): http://label-schema.org/rc1/
+    "org.label-schema.name"="Machine Learning Hub" \
+    "org.label-schema.description"="Multi-user hub which spawns and manages workspace instances." \
+    "org.label-schema.usage"="https://github.com/ml-tooling/ml-hub" \
+    "org.label-schema.url"="https://github.com/ml-tooling/ml-hub" \
+    "org.label-schema.vcs-url"="https://github.com/ml-tooling/ml-hub" \
+    "org.label-schema.vendor"="ML Tooling" \
+    "org.label-schema.version"=$HUB_VERSION \
+    "org.label-schema.schema-version"="1.0" \
+    "org.label-schema.vcs-ref"=$ARG_VCS_REF \
+    "org.label-schema.build-date"=$ARG_BUILD_DATE
+
 # use global option with tini to kill full process groups: https://github.com/krallin/tini#process-group-killing
 ENTRYPOINT ["/tini", "-g", "--"]
 

@@ -1,6 +1,7 @@
 import os, sys
 import subprocess
 import argparse
+import datetime
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--name', help='name of docker container', default="ml-hub")
@@ -19,9 +20,13 @@ def call(command):
     return subprocess.call(command, shell=True)
 
 # calls build scripts in every module with same flags
-def build(module):
-    build_command = "python build.py"
+def build(module="."):
+    if not os.path.isdir(module):
+        print("Could not find directory for " + module)
+        sys.exit(1)
 
+    build_command = "python build.py"
+    
     if args.version:
         build_command += " --version=" + str(args.version)
 
@@ -41,13 +46,32 @@ if args.name:
     service_name = args.name
 
 # docker build
+
+# get git revision if possible
+git_rev = "unknown"
+try:
+    git_rev = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode('ascii').strip()
+except:
+    pass
+
+# get build timestamp
+build_date = datetime.datetime.utcnow().isoformat("T") + "Z"
+try:
+    build_date = subprocess.check_output(['date', '-u', '+%Y-%m-%dT%H:%M:%SZ']).decode('ascii').strip()
+except:
+    pass
+
+vcs_ref_build_arg = " --build-arg ARG_VCS_REF=" + str(git_rev)
+build_date_build_arg = " --build-arg ARG_BUILD_DATE=" + str(build_date)
+version_build_arg = " --build-arg ARG_HUB_VERSION=" + str(args.version)
+
 versioned_image = service_name+":"+str(args.version)
 latest_image = service_name+":latest"
-failed = call("docker build -t "+versioned_image+" -t "+latest_image + " ./")
+failed = call("docker build -t "+versioned_image+" -t "+latest_image + " " + vcs_ref_build_arg + " " + build_date_build_arg + " " + version_build_arg + " ./")
 
 if failed:
     print("Failed to build container")
-    sys.exit()
+    sys.exit(1)
 
 remote_versioned_image = REMOTE_IMAGE_PREFIX + versioned_image
 call("docker tag " + versioned_image + " " + remote_versioned_image)
