@@ -76,6 +76,9 @@ if os.environ['EXECUTION_MODE'] == "k8s":
     c.JupyterHub.spawner_class = 'mlhubspawner.MLHubKubernetesSpawner'
     c.KubeSpawner.pod_name_template = c.Spawner.name_template
 
+    from z2jh import set_config_if_not_none
+    set_config_if_not_none(c.KubeSpawner, 'workspace_images', 'singleuser.workspaceImages')
+
     if not isinstance(c.KubeSpawner.environment, dict):
         c.KubeSpawner.environment = {}
     c.KubeSpawner.environment.update(default_env)
