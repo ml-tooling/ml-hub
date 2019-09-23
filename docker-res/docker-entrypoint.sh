@@ -9,7 +9,7 @@ execution_mode=${EXECUTION_MODE:-local}
 if [ "$execution_mode" == "k8s" ]; then
   # make changes to nginx so that it works in Kubernetes as well
   # TODO: build into run_nginx.py script
-  sed -i 's/resolver 127.0.0.11/resolver 10.96.0.10/g' /etc/nginx/nginx.conf
+  sed -i 's/resolver 127.0.0.11/resolver kube-dns.kube-system.svc.cluster.local/g' /etc/nginx/nginx.conf
   namespace="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
   sed -i "s/set \$service_suffix ''/set \$service_suffix .$namespace.svc.cluster.local/g" /etc/nginx/nginx.conf
 
