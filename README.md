@@ -160,7 +160,7 @@ In this scenario, the idea is that just the admin user exists and can access the
 
 Go to the admin panel (1) and create a new user (2). 
 You can then start the standard workspace for that user or create a new workspace (see second image).
-Via the ssh access button (3), you can send the user a command to connect to the started workspace via ssh.
+Via the ssh access button (3), you can send the user a command to connect to the started workspace via ssh. For more information about the ssh-feature in the workspace, checkout [this documentation section](https://github.com/ml-tooling/ml-workspace#ssh-access). If you created a workspace for another user, it might be necessary to click access on the workspace and authorize once per user to be able to use the ssh-access button.
 
 <img width=100% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/master/docs/images/admin-panel.png">
 <img width=100% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/master/docs/images/create-workspace.png">
