@@ -2,7 +2,13 @@ FROM mltooling/ssh-proxy:0.1.8
 
 WORKDIR /
 
-# Install Basics
+### INSTALL BASICS ###
+
+# Set Debian Frontend to 'noninteractive' as needed for some programs/installations (e.g. sslh does not ask for mode during installation)
+ENV \
+   DEBIAN_FRONTEND="noninteractive" \
+   _SSL_RESOURCES_PATH=$_RESOURCES_PATH/ssl
+
 RUN \
    apt-get update && \
    apt-get install -y --no-install-recommends \
@@ -24,6 +30,7 @@ RUN \
         echo nodejs=8.10.0~dfsg-2ubuntu0.2 nodejs-dev=8.10.0~dfsg-2ubuntu0.2 npm; \
       fi') \
       && \
+   # Cleanup
    clean-layer.sh
 
 # Add tini
@@ -58,68 +65,77 @@ RUN \
     # Cleanup
     clean-layer.sh
 
+ENV \
+   PATH=/usr/local/openresty/nginx/sbin:$PATH
+
 # Install nodejs & npm for JupyterHub's configurable-http-proxy
 RUN \
    apt-get update && \
    #apt-get install -y curl && \
    curl -sL https://deb.nodesource.com/setup_10.x | bash - && \
    apt-get install -y nodejs && \
+   # Cleanup
    clean-layer.sh
 
 # Install JupyterHub
 RUN \
    npm install -g configurable-http-proxy && \
    python3 -m pip install --no-cache jupyterhub && \
+   # Cleanup
    clean-layer.sh
 
-# Install git as needed for installing pip repos from git
-# RUN \
-#    apt-get update && \
-#    apt-get install -y git && \
-#    clean-layer.sh
+### END BASICS ###
 
-# Set Debian Frontend to 'noninteractive' so that sslh does not ask for mode during installation
-ENV \
-  DEBIAN_FRONTEND="noninteractive"
-RUN \
-   apt-get update && \
-   apt-get install -y --no-install-recommends sslh && \
-   clean-layer.sh
+### MLHUB-SPECIFIC INSTALLATIONS ###
+
+# Copy mlhubspawner module to install it
+COPY resources/mlhubspawner /mlhubspawner
 
 RUN \
    pip install --no-cache dockerspawner && \
    pip install --no-cache git+https://github.com/ml-tooling/nativeauthenticator@8ba7a1a4757101c723e59e78d928c2264ec3c973 && \
    pip install --no-cache git+https://github.com/ryanlovett/imagespawner && \
+   pip install --no-cache /mlhubspawner && \
+   rm -r /mlhubspawner && \
+   pip install tornado==5.1.1 && \
+   # Cleanup
    clean-layer.sh
+
+### END MLHUB-SPECIFIC INSTALLATIONS ###
+
+### INCUBATION ZONE ###
+
+# Kubernetes Support
+ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/z2jh.py /usr/local/lib/python3.6/dist-packages/z2jh.py
+ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/cull_idle_servers.py /usr/local/bin/cull_idle_servers.py
+# Copy the jupyterhub config that has a lot of options to be configured
+ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/jupyterhub_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_chart_config.py
+ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/requirements.txt /tmp/requirements.txt
+
+RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
+         -r /tmp/requirements.txt && \
+         chmod u+rx /usr/local/bin/cull_idle_servers.py && \
+         chmod u+rx /usr/local/lib/python3.6/dist-packages/z2jh.py && \
+         # Cleanup
+         clean-layer.sh
+
+### END INCUBATION ZONE ###
+
+### CONFIGURATION ###
 
 COPY resources/nginx.conf /etc/nginx/nginx.conf
 COPY resources/scripts $_RESOURCES_PATH/scripts
 COPY resources/docker-entrypoint.sh $_RESOURCES_PATH/docker-entrypoint.sh
-COPY resources/mlhubspawner /mlhubspawner
 COPY resources/logo.png /usr/local/share/jupyterhub/static/images/jupyter.png
 COPY resources/jupyterhub_config.py $_RESOURCES_PATH/jupyterhub_config.py
 COPY resources/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/templates/home.html
 COPY resources/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/admin.html
 
 RUN \
-    touch $_RESOURCES_PATH/jupyterhub_user_config.py && \
-    # just temp until helm chart is updated
-    cp $_RESOURCES_PATH/jupyterhub_config.py /srv/jupyterhub_config.py
-
-RUN \
-   pip install --no-cache /mlhubspawner && \
-   rm -r /mlhubspawner && \
-   pip install tornado==5.1.1 && \
-   clean-layer.sh
-
-ENV \
-   _SSL_RESOURCES_PATH=$_RESOURCES_PATH/ssl \
-   PATH=/usr/local/openresty/nginx/sbin:$PATH
-
-RUN \
-  mkdir $_SSL_RESOURCES_PATH && chmod ug+rwx $_SSL_RESOURCES_PATH && \
-  chmod -R ug+rxw $_RESOURCES_PATH/scripts && \
-  chmod ug+rwx $_RESOURCES_PATH/docker-entrypoint.sh
+   touch $_RESOURCES_PATH/jupyterhub_user_config.py \
+   mkdir $_SSL_RESOURCES_PATH && chmod ug+rwx $_SSL_RESOURCES_PATH && \
+   chmod -R ug+rxw $_RESOURCES_PATH/scripts && \
+   chmod ug+rwx $_RESOURCES_PATH/docker-entrypoint.sh
 
 # Set python3 to default python. Needed for the ssh-proxy scripts
 RUN \
@@ -136,23 +152,57 @@ ENV \
    START_CHP=false \
    EXECUTION_MODE="local"
 
+### END CONFIGURATION ###
+
+### LABELS ###
+
+ARG ARG_BUILD_DATE="unknown"
+ARG ARG_VCS_REF="unknown"
+ARG ARG_HUB_VERSION="unknown"
+ENV HUB_VERSION=$ARG_HUB_VERSION
+
+# Overwrite & add common labels
+LABEL \
+    "maintainer"="mltooling.team@gmail.com" \
+    # Kubernetes Labels
+    "io.k8s.description"="Multi-user hub which spawns and manages workspace instances." \
+    "io.k8s.display-name"="Machine Learning Hub" \
+    # Openshift labels: https://docs.okd.io/latest/creating_images/metadata.html
+    "io.openshift.expose-services"="8080:http, 5901:xvnc" \
+    "io.openshift.non-scalable"="true" \
+    "io.openshift.tags"="workspace, machine learning, vnc, ubuntu, xfce" \
+    "io.openshift.min-memory"="1Gi" \
+    # Open Container labels: https://github.com/opencontainers/image-spec/blob/master/annotations.md
+    "org.opencontainers.image.title"="Machine Learning Hub" \
+    "org.opencontainers.image.description"="Multi-user hub which spawns and manages workspace instances." \
+    "org.opencontainers.image.documentation"="https://github.com/ml-tooling/ml-hub" \
+    "org.opencontainers.image.url"="https://github.com/ml-tooling/ml-hub" \
+    "org.opencontainers.image.source"="https://github.com/ml-tooling/ml-hub" \
+    "org.opencontainers.image.licenses"="Apache-2.0" \
+    "org.opencontainers.image.version"=$HUB_VERSION \
+    "org.opencontainers.image.vendor"="ML Tooling" \
+    "org.opencontainers.image.authors"="Benjamin Raehtlein & Lukas Masuch" \
+    "org.opencontainers.image.revision"=$ARG_VCS_REF \
+    "org.opencontainers.image.created"=$ARG_BUILD_DATE \ 
+    # Label Schema Convention (deprecated): http://label-schema.org/rc1/
+    "org.label-schema.name"="Machine Learning Hub" \
+    "org.label-schema.description"="Multi-user hub which spawns and manages workspace instances." \
+    "org.label-schema.usage"="https://github.com/ml-tooling/ml-hub" \
+    "org.label-schema.url"="https://github.com/ml-tooling/ml-hub" \
+    "org.label-schema.vcs-url"="https://github.com/ml-tooling/ml-hub" \
+    "org.label-schema.vendor"="ML Tooling" \
+    "org.label-schema.version"=$HUB_VERSION \
+    "org.label-schema.schema-version"="1.0" \
+    "org.label-schema.vcs-ref"=$ARG_VCS_REF \
+    "org.label-schema.build-date"=$ARG_BUILD_DATE
+    
+### END LABELS ###
+
 # use global option with tini to kill full process groups: https://github.com/krallin/tini#process-group-killing
 ENTRYPOINT ["/tini", "-g", "--"]
 
 # Entrypoint must use the array notation, otherwise the entrypoint.sh script does not receive passed cmd arguments (probably because Docker will start it like this: /bin/sh -c /bin/bash /resources/docker-entrypoint.sh <cmd-args>)
 CMD ["/bin/bash", "/resources/docker-entrypoint.sh"]
-
-# Kubernetes Support
-ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/z2jh.py /usr/local/lib/python3.6/dist-packages/z2jh.py
-ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/cull_idle_servers.py /usr/local/bin/cull_idle_servers.py
-# Copy the jupyterhub config that has a lot of options to be configured
-ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/jupyterhub_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_chart_config.py
-ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/requirements.txt /tmp/requirements.txt
-
-RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
-         -r /tmp/requirements.txt && \
-         chmod u+rx /usr/local/bin/cull_idle_servers.py && \
-         chmod u+rx /usr/local/lib/python3.6/dist-packages/z2jh.py
 
 # The port on which nginx listens and checks whether it's http(s) or ssh traffic
 EXPOSE 8080
