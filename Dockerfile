@@ -132,7 +132,7 @@ COPY resources/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/tem
 COPY resources/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/admin.html
 
 RUN \
-   touch $_RESOURCES_PATH/jupyterhub_user_config.py \
+   touch $_RESOURCES_PATH/jupyterhub_user_config.py && \
    mkdir $_SSL_RESOURCES_PATH && chmod ug+rwx $_SSL_RESOURCES_PATH && \
    chmod -R ug+rxw $_RESOURCES_PATH/scripts && \
    chmod ug+rwx $_RESOURCES_PATH/docker-entrypoint.sh
