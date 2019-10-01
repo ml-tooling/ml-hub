@@ -56,7 +56,7 @@ docker run \
 ```
 
 To persist the hub data, such as started workspaces and created users, mount a directory to `/data`.
-A name (`--name`) should be set for the mlhub container, since we let the workspace container connect to the hub not via its docker id but its docker name. This way, the workspaces can still connect to the hub in case it was deleted and re-created (for example when the hub was updated).
+A name (`--name`) must be set for the mlhub container, since we let the workspace container connect to the hub not via its docker id but its docker name. This way, the workspaces can still connect to the hub in case it was deleted and re-created (for example when the hub was updated).
 
 For Kubernetes deployment, we forked and modified [zero-to-jupyterhub-k8s](https://github.com/jupyterhub/zero-to-jupyterhub-k8s) which you can find [here](https://github.com/ml-tooling/zero-to-mlhub-k8s).
 
@@ -73,6 +73,11 @@ Here are the additional environment variables for the hub:
         <th>Variable</th>
         <th>Description</th>
         <th>Default</th>
+    </tr>
+    <tr>
+        <td>SSL_ENABLED</td>
+        <td>Enable SSL. If you don't provide an ssl certificate as described in <a href="https://github.com/ml-tooling/ml-hub#enable-sslhttps">Section "Enable SSL/HTTPS"</a>, certificates will be generated automatically. As this auto-generated certificate is not signed, you have to trust it in the browser. Without ssl enabled, ssh access won't work as the container uses a single port and has to tell https and ssh traffic apart.</td>
+        <td>false</td>
     </tr>
     <tr>
         <td>START_SSH</td>
