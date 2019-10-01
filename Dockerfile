@@ -88,14 +88,14 @@ RUN \
    pip install --no-cache git+https://github.com/ryanlovett/imagespawner && \
    clean-layer.sh
 
-COPY docker-res/nginx.conf /etc/nginx/nginx.conf
-COPY docker-res/scripts $_RESOURCES_PATH/scripts
-COPY docker-res/docker-entrypoint.sh $_RESOURCES_PATH/docker-entrypoint.sh
-COPY docker-res/mlhubspawner /mlhubspawner
-COPY docker-res/logo.png /usr/local/share/jupyterhub/static/images/jupyter.png
-COPY docker-res/jupyterhub_config.py $_RESOURCES_PATH/jupyterhub_config.py
-COPY docker-res/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/templates/home.html
-COPY docker-res/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/admin.html
+COPY resources/nginx.conf /etc/nginx/nginx.conf
+COPY resources/scripts $_RESOURCES_PATH/scripts
+COPY resources/docker-entrypoint.sh $_RESOURCES_PATH/docker-entrypoint.sh
+COPY resources/mlhubspawner /mlhubspawner
+COPY resources/logo.png /usr/local/share/jupyterhub/static/images/jupyter.png
+COPY resources/jupyterhub_config.py $_RESOURCES_PATH/jupyterhub_config.py
+COPY resources/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/templates/home.html
+COPY resources/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/admin.html
 
 RUN \
     touch $_RESOURCES_PATH/jupyterhub_user_config.py && \
@@ -146,3 +146,6 @@ RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
          -r /tmp/requirements.txt && \
          chmod u+rx /usr/local/bin/cull_idle_servers.py && \
          chmod u+rx /usr/local/lib/python3.6/dist-packages/z2jh.py
+
+# The port on which nginx listens and checks whether it's http(s) or ssh traffic
+EXPOSE 8080
