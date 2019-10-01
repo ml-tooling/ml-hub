@@ -62,6 +62,9 @@ class MLHubDockerSpawner(DockerSpawner):
         self.hub_name = client.containers.list(filters={"id": socket.gethostname()})[0].name # TODO: set default to mlhub?
         self.default_label = {"origin": self.hub_name}
 
+        if re.compile('^(?![0-9]+$)(?!-)[a-zA-Z0-9-]{,63}(?<!-)$').match(self.hub_name) is None:
+            self.log.warning("Container name for ml-hub is not DNS-compatible. Make sure that a DNS-compatible name (--name) is provided for the ml-hub container.")
+
         # Connect MLHub to the existing workspace networks (in case of removing / recreation). By this, the hub can connect to the existing
         # workspaces and does not have to restart them.
         try:
