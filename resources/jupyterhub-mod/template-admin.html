@@ -189,7 +189,7 @@ $(".ssh-server").click(function() {
     dialog.find(".server-name").text(user + serverName);
     let setupCommandTextField = dialog.find(".ssh-setup-command");
     dialog.find('.copy-clipboard-button').click(() => {setupCommandTextField.select(); window.document.execCommand('copy');})
-    fetch("/user/" + user + serverName + "/tooling/ssh/setup-command?origin=" + window.location.origin)
+    fetch("{{ prefix }}user/" + user + serverName + "/tooling/ssh/setup-command?origin=" + window.location.origin)
         .then(res => {
             // If the admin is not authorized to access the workspace, the request is redirected and the flag is set to true
             if (res.status === 302 || res.redirected === true) {
