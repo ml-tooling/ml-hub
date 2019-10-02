@@ -119,7 +119,8 @@ To make modifications to the config in the Kubernetes setup, checkout the docume
 
 ### Enable SSL/HTTPS
 
-MLHub will automatically start with HTTPS. If you don't provide a certificate, it will generate one during startup. This is to make routing SSH connections possible as we use nginx to handle HTTPS & SSH on the same port.
+MLHub will start in HTTP mode by default. Note that in HTTP mode, the ssh tunnel feature does not work.
+You can activate ssl via the environment variable `SSL_ENABLED`. If you don't provide a certificate, it will generate one during startup. This is to make routing SSH connections possible as we use nginx to handle HTTPS & SSH on the same port.
 
 <details>
 <summary>Details (click to expand...)</summary>
