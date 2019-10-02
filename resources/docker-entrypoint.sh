@@ -2,9 +2,7 @@
 
 printf "Starting ML Hub\n"
 
-# $@ corresponds to the incoming script arguments
-incoming_args="$@"
-echo "$incoming_args"
+incoming_args="$ADDITIONAL_ARGS"
 execution_mode=${EXECUTION_MODE:-local}
 if [ "$execution_mode" == "k8s" ]; then
   # make changes to nginx so that it works in Kubernetes as well
