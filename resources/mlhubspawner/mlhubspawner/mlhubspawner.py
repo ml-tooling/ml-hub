@@ -142,8 +142,12 @@ class MLHubDockerSpawner(DockerSpawner):
         return env
 
     @gen.coroutine
-    def start(self):
-        """Set custom configuration during start before calling the super.start method of Dockerspawner"""
+    def start(self) -> (str, int):
+        """Set custom configuration during start before calling the super.start method of Dockerspawner
+        
+        Returns:
+            (str, int): container's ip address or '127.0.0.1', container's port
+        """
         if self.user_options.get('image'):
             self.image = self.user_options.get('image')
 
@@ -182,6 +186,15 @@ class MLHubDockerSpawner(DockerSpawner):
 
         self.extra_host_config.update(extra_host_config)
         self.extra_create_kwargs.update(extra_create_kwargs)
+
+        # Check whether the network still exists to which the container will try to connect
+        try:
+            self.highlevel_docker_client.networks.get(self.network_name)
+        except docker.errors.NotFound:
+            created_network = self.create_network(self.network_name)
+            self.connect_hub_to_network(created_network)
+        except docker.errors.APIError:
+            self.log.error("Could not look up network {network_name}".format(network_name=self.network_name))
 
         # Delete existing container when it is created via the options_form UI (to make sure that not an existing container is re-used when you actually want to create a new one)
         # reset the flag afterwards to prevent the container from being removed when just stopped
