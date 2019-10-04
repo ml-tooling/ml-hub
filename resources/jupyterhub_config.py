@@ -34,8 +34,8 @@ c.Spawner.will_resume = True
 # --- Spawner-specific ----
 c.JupyterHub.spawner_class = 'mlhubspawner.MLHubDockerSpawner' # override in your config if you want to have a different spawner. If it is the or inherits from DockerSpawner, the c.DockerSpawner config can have an effect.
 
-c.Spawner.image = "mltooling/ml-workspace:0.8.6"
-c.Spawner.workspace_images = [c.Spawner.image, "mltooling/ml-workspace-gpu:0.8.6", "mltooling/ml-workspace-r:0.8.6"]
+c.Spawner.image = "mltooling/ml-workspace:0.8.7"
+c.Spawner.workspace_images = [c.Spawner.image, "mltooling/ml-workspace-gpu:0.8.7", "mltooling/ml-workspace-r:0.8.7", "mltooling/ml-workspace-spark:0.8.7"]
 c.Spawner.notebook_dir = '/workspace'
 
 # Connect containers to this Docker network
