@@ -6,6 +6,19 @@ import os
 
 c = get_config()
 
+# Override the Jupyterhub `normalize_username` function to remove problematic characters from the username - independent from the used authenticator.
+# E.g. when the username is "lastname, firstname" and the comma and whitespace are not removed, they are encoded by the browser, which can lead to broken routing in our nginx proxy, 
+# especially for the tools-part. 
+# Everybody who starts the hub can override this behavior the same way we do in a mounted `jupyterhub_user_config.py` (Docker local) or via the `hub.extraConfig` (Kubernetes)
+from jupyterhub.auth import Authenticator
+original_normalize_username = Authenticator.normalize_username
+def custom_normalize_username(self, username):
+    username = original_normalize_username(self, username)
+    for forbidden_username_char in [" ", ",", ";", "."]:
+        username = username.replace(forbidden_username_char, "")
+    return username
+Authenticator.normalize_username = custom_normalize_username
+
 # User containers will access hub by container name on the Docker network
 c.JupyterHub.hub_ip = '0.0.0.0' #'research-hub'
 c.JupyterHub.port = 8000
