@@ -119,6 +119,8 @@ RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
          # Cleanup
          clean-layer.sh
 
+RUN pip3 install oauthenticator
+
 ### END INCUBATION ZONE ###
 
 ### CONFIGURATION ###
@@ -206,3 +208,4 @@ CMD ["/bin/bash", "/resources/docker-entrypoint.sh"]
 
 # The port on which nginx listens and checks whether it's http(s) or ssh traffic
 EXPOSE 8080
+ 
