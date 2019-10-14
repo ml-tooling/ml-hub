@@ -17,6 +17,15 @@
       {% if not default_server.active %}Start{% endif %}
       My Server
       </a>
+      {% if default_server.is_update_available is defined %}
+      {% if default_server.is_update_available() %}
+      <a id="start" role="button" class="btn btn-lg btn-primary" 
+        onclick="fetch('{{ base_url }}api/users/{{ user.name }}/server', {'method': 'DELETE'})
+                  .then(() => { fetch('{{ base_url }}api/users/{{ user.name }}/server', {'method': 'POST', 'body': JSON.stringify({'update': true})}); window.setTimeout(() => location.reload(), 1500);})">
+      Update Workspace
+      </a>
+      {% endif %}
+      {% endif %}
     </div>
   </div>
   {% if allow_named_servers %}

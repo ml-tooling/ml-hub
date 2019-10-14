@@ -148,6 +148,7 @@ class MLHubDockerSpawner(DockerSpawner):
         Returns:
             (str, int): container's ip address or '127.0.0.1', container's port
         """
+
         if self.user_options.get('image'):
             self.image = self.user_options.get('image')
 
@@ -198,10 +199,13 @@ class MLHubDockerSpawner(DockerSpawner):
 
         # Delete existing container when it is created via the options_form UI (to make sure that not an existing container is re-used when you actually want to create a new one)
         # reset the flag afterwards to prevent the container from being removed when just stopped
-        if (hasattr(self, 'new_creating') and self.new_creating == True):
+        # Also make it deletable via the user_options (can be set via the POST API)
+        if ((hasattr(self, 'new_creating') and self.new_creating == True) 
+            or self.user_options.get("update", False)):
             self.remove = True
         res = yield super().start()
         self.remove = False
+        self.new_creating = False
         return res
 
     @gen.coroutine
@@ -294,6 +298,9 @@ class MLHubDockerSpawner(DockerSpawner):
 
     def get_lifetime_timestamp(self, labels: dict) -> float:
         return float(labels.get(utils.LABEL_EXPIRATION_TIMESTAMP, '0'))
+
+    def is_update_available(self):
+        return self.image != self.highlevel_docker_client.containers.get(self.container_id).image.tags[0]
 
     def get_labels(self) -> dict:
         try:
