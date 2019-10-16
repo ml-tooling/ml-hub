@@ -46,6 +46,8 @@ def has_complete_network_information(network):
 class MLHubDockerSpawner(DockerSpawner):
     """Provides the possibility to spawn docker containers with specific options, such as resource limits (CPU and Memory), Environment Variables, ..."""
 
+    hub_name = Unicode(config=True, help="Name of the hub container.")
+
     workspace_images = List(
         trait = Unicode(),
         default_value = [],
@@ -59,11 +61,7 @@ class MLHubDockerSpawner(DockerSpawner):
         # Get the MLHub container name to be used as the DNS name for the spawned workspaces, so they can connect to the Hub even if the container is
         # removed and restarted
         client = self.highlevel_docker_client
-        self.hub_name = client.containers.list(filters={"id": socket.gethostname()})[0].name # TODO: set default to mlhub?
         self.default_label = {"origin": self.hub_name}
-
-        if re.compile('^(?![0-9]+$)(?!-)[a-zA-Z0-9-]{,63}(?<!-)$').match(self.hub_name) is None:
-            self.log.warning("Container name for ml-hub is not DNS-compatible. Make sure that a DNS-compatible name (--name) is provided for the ml-hub container.")
 
         # Connect MLHub to the existing workspace networks (in case of removing / recreation). By this, the hub can connect to the existing
         # workspaces and does not have to restart them.
@@ -76,18 +74,12 @@ class MLHubDockerSpawner(DockerSpawner):
     @property
     def highlevel_docker_client(self):
         """Create a highlevel docker client as 'self.client' is the low-level API client.
-        The configuration is done the same way DockerSpawner initializes the low-level API client.
 
         Returns:
             docker.DockerClient
         """
-
-        kwargs = {"version": "auto"}
-        if self.tls_config:
-            kwargs["tls"] = docker.tls.TLSConfig(**self.tls_config)
-        kwargs.update(kwargs_from_env())
-        kwargs.update(self.client_kwargs)
-        return docker.DockerClient(**kwargs)
+        
+        return utils.init_docker_client(self.client_kwargs, self.tls_config)
 
     @property
     def network_name(self):
@@ -300,7 +292,10 @@ class MLHubDockerSpawner(DockerSpawner):
         return float(labels.get(utils.LABEL_EXPIRATION_TIMESTAMP, '0'))
 
     def is_update_available(self):
-        return self.image != self.highlevel_docker_client.containers.get(self.container_id).image.tags[0]
+        try:
+            return self.image != self.highlevel_docker_client.containers.get(self.container_id).image.tags[0]
+        except (docker.errors.NotFound, docker.errors.NullResource):
+            return False
 
     def get_labels(self) -> dict:
         try:

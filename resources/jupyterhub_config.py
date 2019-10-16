@@ -3,6 +3,10 @@ Basic configuration file for jupyterhub.
 """
 
 import os
+import socket
+
+from mlhubspawner import utils
+from subprocess import call
 
 c = get_config()
 
@@ -18,6 +22,25 @@ def custom_normalize_username(self, username):
         username = username.replace(forbidden_username_char, "")
     return username
 Authenticator.normalize_username = custom_normalize_username
+
+### Helper Functions ###
+
+def get_or_init(config: object, config_type: type) -> object:
+    if not isinstance(config, config_type):
+        return config_type()
+    return config
+
+def combine_config_dicts(*configs) -> dict:
+    combined_config = {}
+    for config in configs:
+        if not isinstance(config, dict):
+            config = {}
+        combined_config.update(config)
+    return combined_config
+
+### END HELPER FUNCTIONS###
+
+ENV_HUB_NAME = os.environ['HUB_NAME']
 
 # User containers will access hub by container name on the Docker network
 c.JupyterHub.hub_ip = '0.0.0.0' #'research-hub'
@@ -56,7 +79,7 @@ c.Spawner.use_internal_ip = True
 c.Spawner.extra_host_config = { 'shm_size': '256m' }
 
 c.Spawner.prefix = 'ws' 
-c.Spawner.name_template = c.Spawner.prefix + '-{username}-hub{servername}' # override in your config when you want to have a different name schema. Also consider changing c.Authenticator.username_pattern and check the environment variables to permit ssh connection
+c.Spawner.name_template = c.Spawner.prefix + '-{username}-' + ENV_HUB_NAME + '{servername}' # override in your config when you want to have a different name schema. Also consider changing c.Authenticator.username_pattern and check the environment variables to permit ssh connection
 
 # Don't remove containers once they are stopped - persist state
 c.Spawner.remove_containers = False
@@ -94,14 +117,23 @@ if os.environ['EXECUTION_MODE'] == "k8s":
     from z2jh import set_config_if_not_none
     set_config_if_not_none(c.KubeSpawner, 'workspace_images', 'singleuser.workspaceImages')
 
-    if not isinstance(c.KubeSpawner.environment, dict):
-        c.KubeSpawner.environment = {}
+    c.KubeSpawner.environment = get_or_init(c.KubeSpawner.environment, dict)
+    # if not isinstance(c.KubeSpawner.environment, dict):
+    #     c.KubeSpawner.environment = {}
     c.KubeSpawner.environment.update(default_env)
+else:
+    client_kwargs = {**get_or_init(c.DockerSpawner.client_kwargs, dict), **get_or_init(c.MLHubDockerSpawner.client_kwargs, dict)}
+    tls_config = {**get_or_init(c.DockerSpawner.tls_config, dict), **get_or_init(c.MLHubDockerSpawner.tls_config, dict)}
+
+    docker_client = utils.init_docker_client(client_kwargs, tls_config)
+    docker_client.containers.list(filters={"id": socket.gethostname()})[0].rename(ENV_HUB_NAME)
+    c.MLHubDockerSpawner.hub_name = ENV_HUB_NAME
 
 # Add nativeauthenticator-specific templates
 if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
     import nativeauthenticator
     # if template_paths is not set yet in user_config, it is of type traitlets.config.loader.LazyConfigValue; in other words, it was not initialized yet
-    if not isinstance(c.JupyterHub.template_paths, list):
-        c.JupyterHub.template_paths = []
+    c.JupyterHub.template_paths = get_or_init(c.JupyterHub.template_paths, list)
+    # if not isinstance(c.JupyterHub.template_paths, list):
+    #     c.JupyterHub.template_paths = []
     c.JupyterHub.template_paths.append("{}/templates/".format(os.path.dirname(nativeauthenticator.__file__)))

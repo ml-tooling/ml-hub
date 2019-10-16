@@ -120,6 +120,7 @@ RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
          clean-layer.sh
 
 RUN pip3 install oauthenticator
+RUN apt-get update && apt-get install -y pcregrep && clean-layer.sh
 
 ### END INCUBATION ZONE ###
 
@@ -152,7 +153,8 @@ ENV \
    START_SSH=true \
    START_JHUB=true \
    START_CHP=false \
-   EXECUTION_MODE="local"
+   EXECUTION_MODE="local" \
+   HUB_NAME="mlhub"
 
 ### END CONFIGURATION ###
 

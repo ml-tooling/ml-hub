@@ -5,6 +5,9 @@ Shared util functions
 import math
 import time
 
+import docker
+from docker.utils import kwargs_from_env
+
 LABEL_NVIDIA_VISIBLE_DEVICES = 'nvidia_visible_devices'
 LABEL_EXPIRATION_TIMESTAMP = 'expiration_timestamp_seconds'
 
@@ -24,3 +27,19 @@ def get_container_metadata(spawner):
         return ""
     
     return "({})".format(", ".join(meta_information))
+
+def init_docker_client(client_kwargs: dict, tls_config: dict) -> docker.DockerClient:
+    """Create a docker client. 
+    The configuration is done the same way DockerSpawner initializes the low-level API client.
+
+    Returns:
+        docker.DockerClient
+    """
+
+    kwargs = {"version": "auto"}
+    if tls_config:
+        kwargs["tls"] = docker.tls.TLSConfig(**tls_config)
+    kwargs.update(kwargs_from_env())
+    if client_kwargs:
+        kwargs.update(client_kwargs)
+    return docker.DockerClient(**kwargs)
