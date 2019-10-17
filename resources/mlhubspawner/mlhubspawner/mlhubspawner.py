@@ -13,6 +13,7 @@ import docker.errors
 from docker.utils import kwargs_from_env
 
 import os
+import subprocess
 import socket
 import ipaddress
 from traitlets import default, Unicode, List
@@ -74,7 +75,8 @@ class MLHubDockerSpawner(DockerSpawner):
         # Get available resource information
         self.resource_information = {
             "cpu_count": psutil.cpu_count(),
-            "memory_count_in_gb": round(psutil.virtual_memory().total/1024/1024/1024, 1)
+            "memory_count_in_gb": round(psutil.virtual_memory().total/1024/1024/1024, 1),
+            "gpu_count": self.get_gpu_info()
         }
     
     @property
@@ -161,8 +163,8 @@ class MLHubDockerSpawner(DockerSpawner):
             nano_cpus = int(limited_cpus * 1e9)
             extra_host_config['nano_cpus'] = nano_cpus
         if self.user_options.get('mem_limit'):
-            extra_host_config['mem_limit'] = self.user_options.get(
-                'mem_limit')
+            extra_host_config['mem_limit'] = str(self.user_options.get(
+                'mem_limit')) + "gb"
 
         if self.user_options.get('is_mount_volume') == 'on':
             # {username} and {servername} will be automatically replaced by DockerSpawner with the right values as in template_namespace
@@ -316,3 +318,27 @@ class MLHubDockerSpawner(DockerSpawner):
             template["servername"] = "-" + template["servername"]
         
         return template
+
+    def get_gpu_info(self) -> list:
+        count_gpu = 0
+        try:
+            sp = subprocess.Popen(['nvidia-smi', '-q'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            out_str = sp.communicate()
+            out_list = out_str[0].decode("utf-8").split('\n')
+
+            # out_dict = {}
+
+            for item in out_list:
+                try:
+                    key, val = item.split(':')
+                    key, val = key.strip(), val.strip()
+                    if key == 'Product Name':
+                        count_gpu += 1
+                        # gpus.append(val)
+                    #out_dict[key + "_" + str(count_gpu)] = val
+                except:
+                    pass
+        except:
+            pass
+
+        return count_gpu
