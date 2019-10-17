@@ -119,7 +119,7 @@ RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
          # Cleanup
          clean-layer.sh
 
-RUN pip3 install oauthenticator
+RUN pip3 install oauthenticator psutil
 RUN apt-get update && apt-get install -y pcregrep && clean-layer.sh
 
 ### END INCUBATION ZONE ###

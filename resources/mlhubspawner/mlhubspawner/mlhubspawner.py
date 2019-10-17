@@ -17,7 +17,7 @@ import socket
 import ipaddress
 from traitlets import default, Unicode, List
 from tornado import gen
-import multiprocessing
+import psutil
 import time
 import re
 
@@ -70,6 +70,12 @@ class MLHubDockerSpawner(DockerSpawner):
             self.connect_hub_to_network(network)
         except:
             pass
+
+        # Get available resource information
+        self.resource_information = {
+            "cpu_count": psutil.cpu_count(),
+            "memory_count_in_gb": round(psutil.virtual_memory().total/1024/1024/1024, 1)
+        }
     
     @property
     def highlevel_docker_client(self):
@@ -147,7 +153,7 @@ class MLHubDockerSpawner(DockerSpawner):
         extra_host_config = {}
         if self.user_options.get('cpu_limit'):
             # nano_cpus cannot be bigger than the number of CPUs of the machine (this method would currently not work in a cluster, as machines could be different than the machine where the runtime-manager and this code run.
-            max_available_cpus = multiprocessing.cpu_count()
+            max_available_cpus = self.resource_information.cpu_count
             limited_cpus = min(
                 int(self.user_options.get('cpu_limit')), max_available_cpus)
 
