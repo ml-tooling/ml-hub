@@ -92,7 +92,7 @@ RUN \
 COPY resources/mlhubspawner /mlhubspawner
 
 RUN \
-   pip install --no-cache dockerspawner && \
+   pip install --no-cache git+https://github.com/jupyterhub/dockerspawner@d1f27e2855d2cefbdb25b29cc069b9ca69d564e3 && \
    pip install --no-cache git+https://github.com/ml-tooling/nativeauthenticator@983b203069ca797ff5c595f985075c11ae17656c && \
    pip install --no-cache git+https://github.com/ryanlovett/imagespawner && \
    pip install --no-cache /mlhubspawner && \
