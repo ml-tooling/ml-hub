@@ -92,7 +92,7 @@ RUN \
 COPY resources/mlhubspawner /mlhubspawner
 
 RUN \
-   pip install --no-cache dockerspawner && \
+   pip install --no-cache git+https://github.com/jupyterhub/dockerspawner@d1f27e2855d2cefbdb25b29cc069b9ca69d564e3 && \
    pip install --no-cache git+https://github.com/ml-tooling/nativeauthenticator@983b203069ca797ff5c595f985075c11ae17656c && \
    pip install --no-cache git+https://github.com/ryanlovett/imagespawner && \
    pip install --no-cache /mlhubspawner && \
@@ -118,6 +118,9 @@ RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
          chmod u+rx /usr/local/lib/python3.6/dist-packages/z2jh.py && \
          # Cleanup
          clean-layer.sh
+
+RUN pip3 install oauthenticator psutil
+RUN apt-get update && apt-get install -y pcregrep && clean-layer.sh
 
 ### END INCUBATION ZONE ###
 
@@ -150,7 +153,8 @@ ENV \
    START_SSH=true \
    START_JHUB=true \
    START_CHP=false \
-   EXECUTION_MODE="local"
+   EXECUTION_MODE="local" \
+   HUB_NAME="mlhub"
 
 ### END CONFIGURATION ###
 
@@ -206,3 +210,4 @@ CMD ["/bin/bash", "/resources/docker-entrypoint.sh"]
 
 # The port on which nginx listens and checks whether it's http(s) or ssh traffic
 EXPOSE 8080
+ 

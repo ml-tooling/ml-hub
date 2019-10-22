@@ -13,11 +13,12 @@ import docker.errors
 from docker.utils import kwargs_from_env
 
 import os
+import subprocess
 import socket
 import ipaddress
 from traitlets import default, Unicode, List
 from tornado import gen
-import multiprocessing
+import psutil
 import time
 import re
 
@@ -46,6 +47,8 @@ def has_complete_network_information(network):
 class MLHubDockerSpawner(DockerSpawner):
     """Provides the possibility to spawn docker containers with specific options, such as resource limits (CPU and Memory), Environment Variables, ..."""
 
+    hub_name = Unicode(config=True, help="Name of the hub container.")
+
     workspace_images = List(
         trait = Unicode(),
         default_value = [],
@@ -59,11 +62,7 @@ class MLHubDockerSpawner(DockerSpawner):
         # Get the MLHub container name to be used as the DNS name for the spawned workspaces, so they can connect to the Hub even if the container is
         # removed and restarted
         client = self.highlevel_docker_client
-        self.hub_name = client.containers.list(filters={"id": socket.gethostname()})[0].name # TODO: set default to mlhub?
         self.default_label = {"origin": self.hub_name}
-
-        if re.compile('^(?![0-9]+$)(?!-)[a-zA-Z0-9-]{,63}(?<!-)$').match(self.hub_name) is None:
-            self.log.warning("Container name for ml-hub is not DNS-compatible. Make sure that a DNS-compatible name (--name) is provided for the ml-hub container.")
 
         # Connect MLHub to the existing workspace networks (in case of removing / recreation). By this, the hub can connect to the existing
         # workspaces and does not have to restart them.
@@ -72,22 +71,23 @@ class MLHubDockerSpawner(DockerSpawner):
             self.connect_hub_to_network(network)
         except:
             pass
+
+        # Get available resource information
+        self.resource_information = {
+            "cpu_count": psutil.cpu_count(),
+            "memory_count_in_gb": round(psutil.virtual_memory().total/1024/1024/1024, 1),
+            "gpu_count": self.get_gpu_info()
+        }
     
     @property
     def highlevel_docker_client(self):
         """Create a highlevel docker client as 'self.client' is the low-level API client.
-        The configuration is done the same way DockerSpawner initializes the low-level API client.
 
         Returns:
             docker.DockerClient
         """
-
-        kwargs = {"version": "auto"}
-        if self.tls_config:
-            kwargs["tls"] = docker.tls.TLSConfig(**self.tls_config)
-        kwargs.update(kwargs_from_env())
-        kwargs.update(self.client_kwargs)
-        return docker.DockerClient(**kwargs)
+        
+        return utils.init_docker_client(self.client_kwargs, self.tls_config)
 
     @property
     def network_name(self):
@@ -148,13 +148,14 @@ class MLHubDockerSpawner(DockerSpawner):
         Returns:
             (str, int): container's ip address or '127.0.0.1', container's port
         """
+
         if self.user_options.get('image'):
             self.image = self.user_options.get('image')
 
         extra_host_config = {}
         if self.user_options.get('cpu_limit'):
             # nano_cpus cannot be bigger than the number of CPUs of the machine (this method would currently not work in a cluster, as machines could be different than the machine where the runtime-manager and this code run.
-            max_available_cpus = multiprocessing.cpu_count()
+            max_available_cpus = self.resource_information.cpu_count
             limited_cpus = min(
                 int(self.user_options.get('cpu_limit')), max_available_cpus)
 
@@ -162,8 +163,8 @@ class MLHubDockerSpawner(DockerSpawner):
             nano_cpus = int(limited_cpus * 1e9)
             extra_host_config['nano_cpus'] = nano_cpus
         if self.user_options.get('mem_limit'):
-            extra_host_config['mem_limit'] = self.user_options.get(
-                'mem_limit')
+            extra_host_config['mem_limit'] = str(self.user_options.get(
+                'mem_limit')) + "gb"
 
         if self.user_options.get('is_mount_volume') == 'on':
             # {username} and {servername} will be automatically replaced by DockerSpawner with the right values as in template_namespace
@@ -198,10 +199,13 @@ class MLHubDockerSpawner(DockerSpawner):
 
         # Delete existing container when it is created via the options_form UI (to make sure that not an existing container is re-used when you actually want to create a new one)
         # reset the flag afterwards to prevent the container from being removed when just stopped
-        if (hasattr(self, 'new_creating') and self.new_creating == True):
+        # Also make it deletable via the user_options (can be set via the POST API)
+        if ((hasattr(self, 'new_creating') and self.new_creating == True) 
+            or self.user_options.get("update", False)):
             self.remove = True
         res = yield super().start()
         self.remove = False
+        self.new_creating = False
         return res
 
     @gen.coroutine
@@ -295,6 +299,12 @@ class MLHubDockerSpawner(DockerSpawner):
     def get_lifetime_timestamp(self, labels: dict) -> float:
         return float(labels.get(utils.LABEL_EXPIRATION_TIMESTAMP, '0'))
 
+    def is_update_available(self):
+        try:
+            return self.image != self.highlevel_docker_client.containers.get(self.container_id).image.tags[0]
+        except (docker.errors.NotFound, docker.errors.NullResource):
+            return False
+
     def get_labels(self) -> dict:
         try:
             return self.highlevel_docker_client.containers.get(self.container_id).labels
@@ -309,43 +319,26 @@ class MLHubDockerSpawner(DockerSpawner):
         
         return template
 
-    # NOTE: overwrite method to fix an issue with the image splitting.
-    # We create a PR with the fix for Dockerspawner and, if fixed, we can
-    # remove this one here again
-    @gen.coroutine
-    def pull_image(self, image):
-        """Pull the image, if needed
-        - pulls it unconditionally if pull_policy == 'always'
-        - otherwise, checks if it exists, and
-          - raises if pull_policy == 'never'
-          - pulls if pull_policy == 'ifnotpresent'
-        """
-        # docker wants to split repo:tag
-
-        # the part split("/")[-1] allows having an image from a custom repo
-        # with port but without tag. For example: my.docker.repo:51150/foo would not 
-        # pass this test, resulting in image=my.docker.repo:51150/foo and tag=latest
-        if ':' in image.split("/")[-1]:
-            # rsplit splits from right to left, allowing to have a custom image repo with port
-            repo, tag = image.rsplit(':', 1)
-        else:
-            repo = image
-            tag = 'latest'
-
-        if self.pull_policy.lower() == 'always':
-            # always pull
-            self.log.info("pulling %s", image)
-            yield self.docker('pull', repo, tag)
-            # done
-            return
+    def get_gpu_info(self) -> list:
+        count_gpu = 0
         try:
-            # check if the image is present
-            yield self.docker('inspect_image', image)
-        except docker.errors.NotFound:
-            if self.pull_policy == "never":
-                # never pull, raise because there is no such image
-                raise
-            elif self.pull_policy == "ifnotpresent":
-                # not present, pull it for the first time
-                self.log.info("pulling image %s", image)
-                yield self.docker('pull', repo, tag)
+            sp = subprocess.Popen(['nvidia-smi', '-q'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            out_str = sp.communicate()
+            out_list = out_str[0].decode("utf-8").split('\n')
+
+            # out_dict = {}
+
+            for item in out_list:
+                try:
+                    key, val = item.split(':')
+                    key, val = key.strip(), val.strip()
+                    if key == 'Product Name':
+                        count_gpu += 1
+                        # gpus.append(val)
+                    #out_dict[key + "_" + str(count_gpu)] = val
+                except:
+                    pass
+        except:
+            pass
+
+        return count_gpu

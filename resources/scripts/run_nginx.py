@@ -10,6 +10,7 @@ import time
 
 ENV_RESOURCES_PATH = os.environ["_RESOURCES_PATH"]
 ENV_DEFAULT_WORKSPACE_PORT = os.environ["DEFAULT_WORKSPACE_PORT"]
+ENV_HUB_NAME = os.environ.get("HUB_NAME", "hub")
 
 NGINX_FILE = "/etc/nginx/nginx.conf"
 
@@ -37,6 +38,7 @@ else:
 call("sed -i 's/{UPSTREAM}/" + UPSTREAM + "/g' " + NGINX_FILE, shell=True)
 call("sed -i 's/{SSL}/" + SSL + "/g' " + NGINX_FILE, shell=True)
 call("sed -i 's@{DEFAULT_WORKSPACE_PORT}@" + ENV_DEFAULT_WORKSPACE_PORT + "@g' " + NGINX_FILE, shell=True)
+call("sed -i 's@{HUB_NAME}@" + ENV_HUB_NAME + "@g' " + NGINX_FILE, shell=True)
 
 # start nginx
 print("Start nginx")

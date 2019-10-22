@@ -30,7 +30,7 @@ class MLHubKubernetesSpawner(KubeSpawner):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.hub_name = os.getenv("MLHUB_NAME", "mlhub")
+        self.hub_name = os.getenv("HUB_NAME", "mlhub")
         self.default_label = {"origin": self.hub_name}   
     
     @default('options_form')
@@ -79,7 +79,7 @@ class MLHubKubernetesSpawner(KubeSpawner):
             self.cpu_limit = float(self.user_options.get('cpu_limit'))
 
         if self.user_options.get('mem_limit'):
-            memory = str(self.user_options.get('mem_limit'))
+            memory = str(self.user_options.get('mem_limit')) + "G"
             self.mem_limit = memory.upper().replace("GB", "G").replace("KB", "K").replace("MB", "M").replace("TB", "T")
 
         #if self.user_options.get('is_mount_volume') == 'on':

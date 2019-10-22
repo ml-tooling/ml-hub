@@ -49,14 +49,13 @@ Most parts will be identical to the configuration of Jupyterhub 1.0.0. One of th
 ```bash
 docker run \
     -p 8080 \
-    --name mlhub \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v jupyterhub_data:/data \
     mltooling/ml-hub:latest
 ```
 
 To persist the hub data, such as started workspaces and created users, mount a directory to `/data`.
-A name (`--name`) must be set for the mlhub container, since we let the workspace container connect to the hub not via its docker id but its docker name. This way, the workspaces can still connect to the hub in case it was deleted and re-created (for example when the hub was updated).
+Any given name (`--name`) will be overruled by the environment variable `HUB_NAME`.
 
 For Kubernetes deployment, we forked and modified [zero-to-jupyterhub-k8s](https://github.com/jupyterhub/zero-to-jupyterhub-k8s) which you can find [here](https://github.com/ml-tooling/zero-to-mlhub-k8s).
 
@@ -73,6 +72,14 @@ Here are the additional environment variables for the hub:
         <th>Variable</th>
         <th>Description</th>
         <th>Default</th>
+    </tr>
+    <tr>
+        <td>HUB_NAME</td>
+        <td>In Docker-local mode, the container will be (re-)named based on the value of this environment variable. All resources created by the hub will take this name into account. Hence, you can have multiple hub instances running without any naming conflicts.
+        Further, we let the workspace containers connect to the hub not via its docker id but its docker name. This way, the workspaces can still connect to the hub in case it was deleted and re-created (for example when the hub was updated).
+        The value must be DNS compliant and must be between 1 and 5 characters long.
+        </td>
+        <td>mlhub</td>
     </tr>
     <tr>
         <td>SSL_ENABLED</td>

@@ -14,24 +14,15 @@ if [ "$execution_mode" == "k8s" ]; then
   # Preserve Kubernetes-specific environment variables for sshd process
   echo "export KUBERNETES_SERVICE_HOST=$KUBERNETES_SERVICE_HOST" >> $SSHD_ENVIRONMENT_VARIABLES
   echo "export KUBERNETES_SERVICE_PORT=$KUBERNETES_SERVICE_PORT" >> $SSHD_ENVIRONMENT_VARIABLES
-fi
-
-# It is possible to override the default sshd target with this command,
-# e.g. if it runs in a different container
-if [ ! -z "${SSHD_TARGET}" ]; then
-  sed -i "s/127.0.0.1:22/${SSHD_TARGET}/g" /etc/nginx/nginx.conf
+else
+  if ! echo $HUB_NAME | pcregrep "^(?![0-9]+$)(?!-)[a-zA-Z0-9-]{1,5}(?<!-)$" > /dev/null; then
+    echo "Container name for ml-hub is either too long or not DNS-compatible. Make sure that a DNS-compatible name (--env HUB_NAME) with 1 to 5 characters is provided for the ml-hub container."
+    exit 1
+  fi
 fi
 
 # create / copy certificates
 $_RESOURCES_PATH/scripts/setup_certs.sh
-
-if [ "${START_NGINX}" == true ]; then
-  # Configure and start nginx
-  # TODO: restart nginx
-  # TODO: make dependent on Kubernetes mode
-
-  python $_RESOURCES_PATH/scripts/run_nginx.py
-fi
 
 function start_ssh {
     echo "Start SSH Daemon service"
@@ -60,6 +51,19 @@ fi
 
 if [ "${START_CHP}" == true ]; then
   start_http_proxy
+fi
+
+if [ "${START_NGINX}" == true ]; then
+  # It is possible to override the default sshd target with this command,
+  # e.g. if it runs in a different container
+  if [ ! -z "${SSHD_TARGET}" ]; then
+    sed -i "s/127.0.0.1:22/${SSHD_TARGET}/g" /etc/nginx/nginx.conf
+  fi
+  # Configure and start nginx
+  # TODO: restart nginx
+  # TODO: make dependent on Kubernetes mode
+
+  python $_RESOURCES_PATH/scripts/run_nginx.py
 fi
 
 # Copied from: https://docs.docker.com/config/containers/multi-service_container/
