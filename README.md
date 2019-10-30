@@ -25,7 +25,7 @@
   <a href="#contribution">Contribution</a>
 </p>
 
-MLHub is based on [Jupyterhub](https://github.com/jupyterhub/jupyterhub). MLHub allows to create and manage multiple [workspaces](https://github.com/ml-tooling/ml-workspace), for example to distribute them to a group of people or within a team.
+MLHub is based on [Jupyterhub](https://github.com/jupyterhub/jupyterhub) with complete focus on Docker and Kubernetes. MLHub allows to create and manage multiple [workspaces](https://github.com/ml-tooling/ml-workspace), for example to distribute them to a group of people or within a team.
 
 ## Highlights
 
@@ -61,7 +61,10 @@ For Kubernetes deployment, we forked and modified [zero-to-jupyterhub-k8s](https
 
 ### Configuration
 
-In the default config, a user named `admin` can register and access the hub. If you use a different authenticator, you might want to set a different user as initial admin user as well.
+#### Default Login
+
+When using the default config - so leaving the Jupyterhub config `c.Authenticator.admin_users` as it is -, a user named `admin` can access the hub with admin rights. If you use the default `NativeAuthenticator` as authenticator, youc must register the user `admin` with a password of your choice first before login in.
+If you use a different authenticator, you might want to set a different user as initial admin user as well, for example in case of using oauth you want to set `c.Authenticator.admin_users` to a username returned by the oauth login.
 
 #### Environment Variables
 
