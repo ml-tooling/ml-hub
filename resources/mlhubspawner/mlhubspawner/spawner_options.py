@@ -53,7 +53,7 @@ def get_options_form(spawner, additional_cpu_info="", additional_memory_info="",
             </div>
         </div>
         <div style="{div_style}">
-            <label style="{label_style}" for="cpu_limit">Number of CPUs {optional_label}</label>
+            <label style="{label_style}" for="cpu_limit">CPU Limit {optional_label}</label>
             <input style="{input_style}" name="cpu_limit" placeholder="e.g. 8"></input>
             <div style="{additional_info_style}">{additional_cpu_info}</div>
         </div>
@@ -89,11 +89,11 @@ def get_options_form(spawner, additional_cpu_info="", additional_memory_info="",
     )
 
 def get_options_form_docker(spawner):
-    description_gpus = 'Empty for no GPU, "all" for all GPUs, or a comma-separated list of indices of the GPUs (e.g 0,2).'
+    description_gpus = 'Leave empty for no GPU, "all" for all GPUs, or a comma-separated list of indices of the GPUs (e.g 0,2).'
     additional_info = {
-        "additional_cpu_info": "Number between 1 and {cpu_count}".format(cpu_count=spawner.resource_information['cpu_count']),
-        "additional_memory_info": "Number between 1 and {memory_count_in_gb}".format(memory_count_in_gb=spawner.resource_information['memory_count_in_gb']),
-        "additional_gpu_info": "<div>Available GPUs: {gpu_count}</div><div>{description_gpus}</div>".format(gpu_count=spawner.resource_information['gpu_count'], description_gpus=description_gpus)
+        "additional_cpu_info": "Host has {cpu_count} CPUs".format(cpu_count=spawner.resource_information['cpu_count']),
+        "additional_memory_info": "Host has {memory_count_in_gb}GB memory".format(memory_count_in_gb=spawner.resource_information['memory_count_in_gb']),
+        "additional_gpu_info": "<div>Host has {gpu_count} GPUs</div><div>{description_gpus}</div>".format(gpu_count=spawner.resource_information['gpu_count'], description_gpus=description_gpus)
     
     }
     options_form = get_options_form(spawner, **additional_info)
