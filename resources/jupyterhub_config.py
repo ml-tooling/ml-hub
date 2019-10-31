@@ -3,7 +3,9 @@ Basic configuration file for jupyterhub.
 """
 
 import os
+import signal
 import socket
+import docker.errors
 
 from mlhubspawner import utils
 from subprocess import call
@@ -126,7 +128,12 @@ else:
     tls_config = {**get_or_init(c.DockerSpawner.tls_config, dict), **get_or_init(c.MLHubDockerSpawner.tls_config, dict)}
 
     docker_client = utils.init_docker_client(client_kwargs, tls_config)
-    docker_client.containers.list(filters={"id": socket.gethostname()})[0].rename(ENV_HUB_NAME)
+    try:
+        docker_client.containers.list(filters={"id": socket.gethostname()})[0].rename(ENV_HUB_NAME)
+    except docker.errors.APIError as e:
+        print("Could not correctly start MLHub container. " + str(e))
+        os.kill(os.getpid(), signal.SIGTERM)
+
     c.MLHubDockerSpawner.hub_name = ENV_HUB_NAME
 
 # Add nativeauthenticator-specific templates
