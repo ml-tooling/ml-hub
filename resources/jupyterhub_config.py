@@ -129,7 +129,10 @@ else:
 
     docker_client = utils.init_docker_client(client_kwargs, tls_config)
     try:
-        docker_client.containers.list(filters={"id": socket.gethostname()})[0].rename(ENV_HUB_NAME)
+        container = docker_client.containers.list(filters={"id": socket.gethostname()})[0]
+
+        if container.name.lower() != ENV_HUB_NAME.lower():
+            container.rename(ENV_HUB_NAME.lower())
     except docker.errors.APIError as e:
         print("Could not correctly start MLHub container. " + str(e))
         os.kill(os.getpid(), signal.SIGTERM)
