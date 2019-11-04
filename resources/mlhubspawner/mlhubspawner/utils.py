@@ -8,6 +8,8 @@ import time
 import docker
 from docker.utils import kwargs_from_env
 
+import json
+
 LABEL_NVIDIA_VISIBLE_DEVICES = 'nvidia_visible_devices'
 LABEL_EXPIRATION_TIMESTAMP = 'expiration_timestamp_seconds'
 
@@ -43,3 +45,19 @@ def init_docker_client(client_kwargs: dict, tls_config: dict) -> docker.DockerCl
     if client_kwargs:
         kwargs.update(client_kwargs)
     return docker.DockerClient(**kwargs)
+
+def get_state(spawner, state) -> dict:
+    if hasattr(spawner, "saved_user_options"):
+        state["saved_user_options"] = spawner.saved_user_options
+    
+    return state
+
+def load_state(spawner, state):    
+    if "saved_user_options" in state:
+        spawner.saved_user_options = state.get("saved_user_options")
+
+def get_workspace_config(spawner) -> str:
+    if not hasattr(spawner, "saved_user_options"):
+        return "{}"
+    
+    return json.dumps(spawner.saved_user_options)

@@ -133,6 +133,8 @@ COPY resources/logo.png /usr/local/share/jupyterhub/static/images/jupyter.png
 COPY resources/jupyterhub_config.py $_RESOURCES_PATH/jupyterhub_config.py
 COPY resources/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/templates/home.html
 COPY resources/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/admin.html
+COPY resources/jupyterhub-mod/info-dialog-snippet.html /usr/local/share/jupyterhub/templates/info-dialog-snippet.html
+COPY resources/jupyterhub-mod/jsonpresenter /usr/local/share/jupyterhub/static/components/jsonpresenter/
 
 RUN \
    touch $_RESOURCES_PATH/jupyterhub_user_config.py && \

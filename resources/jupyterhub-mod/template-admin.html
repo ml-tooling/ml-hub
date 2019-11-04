@@ -88,6 +88,13 @@
         </a>
         {%- endif %}
       </td>
+      <td class="ssh-col col-sm-1 text-center">
+        {%- if admin_access %}
+        <a role="button" class="info-server btn btn-xs btn-primary" onclick="showWorkspaceInfo(this, '{{ spawner.get_workspace_config() if spawner.get_workspace_config is defined }}')">
+        info
+        </a>
+        {%- endif %}
+      </td>
       <td class="edit-col col-sm-1 text-center">
       {%- if spawner.name == '' -%}
         <a role="button" class="edit-user btn btn-xs btn-primary">edit user</a>
@@ -146,6 +153,8 @@
   <textarea class="ssh-setup-command" readonly="true" style="width: 100%; padding: 4px; overflow-wrap: normal;"></textarea>
 {% endcall %}
 
+{# END CUSTOM STUFF #}
+
 {% macro user_modal(name, multi=False) %}
 {% call modal(name, btn_class='btn-primary save-button') %}
 <div class="form-group">
@@ -185,6 +194,7 @@ $(".ssh-server").click(function() {
     if (serverName && serverName !== '') {
         serverName = "/" + serverName; // do it like this, otherwise there is one slash too much in the url if the serverName is empty
     }
+    // the name ssh-setup-dialog is created by the `call modal` command above and the provided name there
     let dialog = $("#ssh-setup-dialog");
     dialog.find(".server-name").text(user + serverName);
     let setupCommandTextField = dialog.find(".ssh-setup-command");
@@ -204,6 +214,8 @@ $(".ssh-server").click(function() {
         .then(res =>  setupCommandTextField.text(res));
     dialog.modal();
   });
-
 </script>
+
+{% include 'info-dialog-snippet.html' %}
+
 {% endblock %}

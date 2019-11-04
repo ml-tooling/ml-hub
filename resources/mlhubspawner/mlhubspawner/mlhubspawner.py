@@ -149,13 +149,15 @@ class MLHubDockerSpawner(DockerSpawner):
             (str, int): container's ip address or '127.0.0.1', container's port
         """
 
+        self.saved_user_options = self.user_options
+
         if self.user_options.get('image'):
             self.image = self.user_options.get('image')
 
         extra_host_config = {}
         if self.user_options.get('cpu_limit'):
             # nano_cpus cannot be bigger than the number of CPUs of the machine (this method would currently not work in a cluster, as machines could be different than the machine where the runtime-manager and this code run.
-            max_available_cpus = self.resource_information.cpu_count
+            max_available_cpus = self.resource_information["cpu_count"]
             limited_cpus = min(
                 int(self.user_options.get('cpu_limit')), max_available_cpus)
 
@@ -295,6 +297,13 @@ class MLHubDockerSpawner(DockerSpawner):
             return ""
 
         return utils.get_container_metadata(self)
+    
+    def get_workspace_config(self) -> str:
+        return utils.get_workspace_config(self)
+        # if not hasattr(self, "saved_user_options"):
+        #     return "{}"
+        
+        # return json.dumps(self.saved_user_options)
 
     def get_lifetime_timestamp(self, labels: dict) -> float:
         return float(labels.get(utils.LABEL_EXPIRATION_TIMESTAMP, '0'))
@@ -318,6 +327,18 @@ class MLHubDockerSpawner(DockerSpawner):
             template["servername"] = "-" + template["servername"]
         
         return template
+
+    # get_state and load_state are functions used by Jupyterhub to save and load variables that shall be persisted even if the hub is removed and re-created
+    # Override
+    def get_state(self):
+        state = super(MLHubDockerSpawner, self).get_state()
+        state = utils.get_state(self, state)
+        return state
+    
+    # Override
+    def load_state(self, state):
+        super(MLHubDockerSpawner, self).load_state(state)
+        utils.load_state(self, state)
 
     def get_gpu_info(self) -> list:
         count_gpu = 0

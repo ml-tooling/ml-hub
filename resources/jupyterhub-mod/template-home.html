@@ -112,6 +112,9 @@
             start
           </a>
           <a role="button" class="delete-server btn btn-xs btn-danger{% if spawner.active %} hidden{% endif %}" id="delete-{{ spawner.name }}">delete</a>
+          <a role="button" class="info-server btn btn-xs btn-primary" onclick="showWorkspaceInfo(this, '{{ spawner.get_workspace_config() if spawner.get_workspace_config is defined }}')">
+            info
+          </a>
         </td>
       </tr>
       {% endfor %}
@@ -160,4 +163,7 @@ $(document).ready(() => {
         }).catch(() => {});
 });
 </script>
+
+{% include 'info-dialog-snippet.html' %}
+
 {% endblock %}

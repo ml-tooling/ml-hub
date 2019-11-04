@@ -67,6 +67,9 @@ class MLHubKubernetesSpawner(KubeSpawner):
     @gen.coroutine
     def start(self):
         """Set custom configuration during start before calling the super.start method of Dockerspawner"""
+
+        self.saved_user_options = self.user_options
+
         if self.user_options.get('image'):
             self.image = self.user_options.get('image')
 
@@ -153,6 +156,9 @@ class MLHubKubernetesSpawner(KubeSpawner):
 
         return utils.get_container_metadata(self)
 
+    def get_workspace_config(self) -> str:
+        return utils.get_workspace_config(self)
+
     def get_lifetime_timestamp(self, labels: dict) -> float:
         return float(labels.get(utils.LABEL_EXPIRATION_TIMESTAMP, '0'))
 
@@ -171,3 +177,15 @@ class MLHubKubernetesSpawner(KubeSpawner):
             if e.status != 404:
                 raise
             self.log.warn("Could not delete %s/%s: does not exist", kind, safe_name)
+
+    # get_state and load_state are functions used by Jupyterhub to save and load variables that shall be persisted even if the hub is removed and re-created
+    # Override
+    def get_state(self):
+        state = super(MLHubKubernetesSpawner, self).get_state()
+        state = utils.get_state(self, state)
+        return state
+    
+    # Override
+    def load_state(self, state):
+        super(MLHubKubernetesSpawner, self).load_state(state)
+        utils.load_state(self, state)

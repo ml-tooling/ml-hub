@@ -1,0 +1,36 @@
+<!-- This is a template snippet that can be included in html files that extend 'page.html'. 
+    It is for showing a dialog with json content about a Workspace's configuration -->
+
+<script type="text/javascript">
+function showWorkspaceInfo(element, workspaceInfo) {
+    if (!workspaceInfo) {
+      workspaceInfo = {};
+    }
+  
+    let el = $(element);
+    let row = el.parent().parent();
+    let user = row.data("user");
+    let serverName = row.data("server-name");
+    if (serverName && serverName !== '') {
+      serverName = "/" + serverName; // do it like this, otherwise there is one slash too much in the url if the serverName is empty
+    }
+    let dialog = $("#workspace-info-dialog");
+    dialog.find(".server-name").text(user + serverName);
+    dialog.find('.info-box').jsonPresenter({
+      json: JSON.parse(workspaceInfo)
+    });
+  
+    dialog.modal();
+  }
+  </script>
+  
+  <!-- Library to render the JSON in showWorkspaceInfo()->jsonPresenter [source: https://www.jqueryscript.net/other/Render-JSON-Schema-In-HTML-jQuery-JSON-Presenter.html] -->
+  <script src="{{static_url('components/jsonpresenter/jquery.jsonPresenter.js') }}" type="text/javascript" charset="utf-8"></script>
+  <link rel="stylesheet" href="{{ static_url('components/jsonpresenter/jquery.jsonPresenter.css') }}" type="text/css"/>
+
+{% call modal('Workspace Info', btn_label='', btn_class='hidden') %}
+  Workspace Info for <span class="server-name"></span>: 
+  <div class="info-box">
+    <pre class="info-content"></pre>
+  </div>
+{% endcall %}
