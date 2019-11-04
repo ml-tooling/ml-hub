@@ -300,17 +300,17 @@ class MLHubDockerSpawner(DockerSpawner):
     
     def get_workspace_config(self) -> str:
         return utils.get_workspace_config(self)
-        # if not hasattr(self, "saved_user_options"):
-        #     return "{}"
-        
-        # return json.dumps(self.saved_user_options)
 
     def get_lifetime_timestamp(self, labels: dict) -> float:
         return float(labels.get(utils.LABEL_EXPIRATION_TIMESTAMP, '0'))
 
     def is_update_available(self):
         try:
-            return self.image != self.highlevel_docker_client.containers.get(self.container_id).image.tags[0]
+            # compare the last parts of the images, so that also "mltooling/ml-workspace:0.8.7 = ml-workspace:0.8.7" would match
+            config_image = self.image.split("/")[-1]
+            workspace_image = self.highlevel_docker_client.containers.get(self.container_id).image.tags[0].split("/")[-1]
+
+            return config_image != workspace_image
         except (docker.errors.NotFound, docker.errors.NullResource):
             return False
 
