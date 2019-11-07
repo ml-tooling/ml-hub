@@ -18,6 +18,10 @@ LABEL_EXPIRATION_TIMESTAMP = 'expiration_timestamp_seconds'
 LABEL_MLHUB_USER = "mlhub.user"
 LABEL_MLHUB_SERVER_NAME = "mlhub.server_name"
 
+ENV_NAME_EXECUTION_MODE = "EXECUTION_MODE"
+EXECUTION_MODE_DOCKER = "docker"
+EXECUTION_MODE_KUBERNETES = "k8s"
+
 ENV_HUB_NAME = os.getenv("HUB_NAME", "mlhub")
 
 def get_origin_label() -> tuple:

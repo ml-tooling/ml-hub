@@ -25,6 +25,8 @@ jupyterhub_api_token = os.getenv('JUPYTERHUB_API_TOKEN')
 
 auth_header = {"Authorization": "token " + jupyterhub_api_token}
 
+execution_mode = os.environ[utils.ENV_NAME_EXECUTION_MODE]
+
 http = urllib3.PoolManager()
 
 docker_client_kwargs = json.loads(os.getenv("DOCKER_CLIENT_KWARGS"))
@@ -36,6 +38,13 @@ origin_label_filter = {"label": "{}={}".format(origin_key, hub_name)}
 
 def get_hub_docker_resources(docker_client_obj):
     return docker_client_obj.list(filters=origin_label_filter)
+
+def get_resource_labels(resource):
+    if execution_mode == utils.EXECUTION_MODE_DOCKER:
+        return resource.labels
+    elif execution_mode == utils.EXECUTION_MODE_KUBERNETES:
+        # TODO: FINISH
+        return {}
 
 def remove_deleted_user_resources(existing_user_names: []):
     """Remove resources for which no user exists anymore by checking whether the label of user name occurs in the existing
@@ -126,9 +135,14 @@ def get_hub_usernames() -> []:
     return existing_user_names
 
 def remove_expired_workspaces():
-    hub_containers = get_hub_docker_resources(docker_client.containers)
+    if execution_mode == utils.EXECUTION_MODE_DOCKER:
+        hub_containers = get_hub_docker_resources(docker_client.containers)
+    elif execution_mode == utils.EXECUTION_MODE_KUBERNETES:
+        # TODO: finish
+        hub_containers = []
+    
     for container in hub_containers:
-        lifetime_timestamp = utils.get_lifetime_timestamp(container.labels)
+        lifetime_timestamp = utils.get_lifetime_timestamp(get_resource_labels(container))
         if lifetime_timestamp != 0:
             difference = math.ceil(lifetime_timestamp - time.time())
             # container lifetime is exceeded (remaining lifetime is negative)
@@ -153,6 +167,10 @@ class CleanupUserResources(HubAuthenticated, web.RequestHandler):
             self.finish()
             return
 
+        if execution_mode == utils.EXECUTION_MODE_KUBERNETES:
+            self.finish("This method cannot be used in hub execution mode " + execution_mode)
+            return
+        
         remove_deleted_user_resources(get_hub_usernames())
 
 class CleanupExpiredContainers(HubAuthenticated, web.RequestHandler):

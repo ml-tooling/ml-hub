@@ -112,7 +112,7 @@ load_subconfig("{}/jupyterhub_user_config.py".format(os.getenv("_RESOURCES_PATH"
 
 # In Kubernetes mode, load the Kubernetes Jupyterhub config that can be configured via a config.yaml.
 # Those values will override the values set above, as it is loaded afterwards.
-if os.environ['EXECUTION_MODE'] == "k8s":
+if os.environ[utils.ENV_NAME_EXECUTION_MODE] == utils.EXECUTION_MODE_KUBERNETES:
     load_subconfig("{}/kubernetes/jupyterhub_chart_config.py".format(os.getenv("_RESOURCES_PATH")))
 
     c.JupyterHub.spawner_class = 'mlhubspawner.MLHubKubernetesSpawner'
