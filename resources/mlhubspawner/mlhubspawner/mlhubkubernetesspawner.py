@@ -30,8 +30,8 @@ class MLHubKubernetesSpawner(KubeSpawner):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.hub_name = os.getenv("HUB_NAME", "mlhub")
-        self.default_label = {"origin": self.hub_name}   
+        origin_key, self.hub_name = utils.get_origin_label()
+        self.default_label = {origin_key: self.hub_name, utils.LABEL_MLHUB_USER: self.user.name}  
     
     @default('options_form')
     def _options_form(self):

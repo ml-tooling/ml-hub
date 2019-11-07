@@ -135,6 +135,7 @@ COPY resources/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/tem
 COPY resources/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/admin.html
 COPY resources/jupyterhub-mod/info-dialog-snippet.html /usr/local/share/jupyterhub/templates/info-dialog-snippet.html
 COPY resources/jupyterhub-mod/jsonpresenter /usr/local/share/jupyterhub/static/components/jsonpresenter/
+COPY resources/jupyterhub-mod/cleanup-service.py /resources/cleanup-service.py
 
 RUN \
    touch $_RESOURCES_PATH/jupyterhub_user_config.py && \

@@ -2,6 +2,8 @@
 Shared util functions
 """
 
+import os
+
 import math
 import time
 
@@ -12,6 +14,18 @@ import json
 
 LABEL_NVIDIA_VISIBLE_DEVICES = 'nvidia_visible_devices'
 LABEL_EXPIRATION_TIMESTAMP = 'expiration_timestamp_seconds'
+
+LABEL_MLHUB_USER = "mlhub.user"
+
+ENV_HUB_NAME = os.getenv("HUB_NAME", "mlhub")
+
+def get_origin_label() -> tuple:
+    """
+    Returns:
+        tuple (str, str): (key, value) for origin label
+    """
+
+    return "mlhub.origin", ENV_HUB_NAME
 
 def get_container_metadata(spawner):
     meta_information = []
@@ -44,6 +58,7 @@ def init_docker_client(client_kwargs: dict, tls_config: dict) -> docker.DockerCl
     kwargs.update(kwargs_from_env())
     if client_kwargs:
         kwargs.update(client_kwargs)
+        
     return docker.DockerClient(**kwargs)
 
 def get_state(spawner, state) -> dict:

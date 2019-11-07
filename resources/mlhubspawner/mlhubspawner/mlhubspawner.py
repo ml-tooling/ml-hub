@@ -47,7 +47,7 @@ def has_complete_network_information(network):
 class MLHubDockerSpawner(DockerSpawner):
     """Provides the possibility to spawn docker containers with specific options, such as resource limits (CPU and Memory), Environment Variables, ..."""
 
-    hub_name = Unicode(config=True, help="Name of the hub container.")
+    #hub_name = Unicode(config=True, help="Name of the hub container.")
 
     workspace_images = List(
         trait = Unicode(),
@@ -58,11 +58,12 @@ class MLHubDockerSpawner(DockerSpawner):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        origin_key, self.hub_name = utils.get_origin_label()
+        self.default_labels = {origin_key: self.hub_name, utils.LABEL_MLHUB_USER: self.user.name}
 
         # Get the MLHub container name to be used as the DNS name for the spawned workspaces, so they can connect to the Hub even if the container is
         # removed and restarted
         client = self.highlevel_docker_client
-        self.default_label = {"origin": self.hub_name}
 
         # Connect MLHub to the existing workspace networks (in case of removing / recreation). By this, the hub can connect to the existing
         # workspaces and does not have to restart them.
@@ -171,11 +172,12 @@ class MLHubDockerSpawner(DockerSpawner):
         if self.user_options.get('is_mount_volume') == 'on':
             # {username} and {servername} will be automatically replaced by DockerSpawner with the right values as in template_namespace
             #volumeName = self.name_template.format(prefix=self.prefix)
+            self.highlevel_docker_client.volumes.create(name=self.object_name, labels=self.default_labels)
             self.volumes = {self.object_name: "/workspace"}
 
         extra_create_kwargs = {}
         # set default label 'origin' to know for sure which containers where started via the hub
-        extra_create_kwargs['labels'] = self.default_label
+        extra_create_kwargs['labels'] = self.default_labels
         if self.user_options.get('days_to_live'):
             days_to_live_in_seconds = int(self.user_options.get('days_to_live')) * 24 * 60 * 60 # days * hours_per_day * minutes_per_hour * seconds_per_minute
             expiration_timestamp = time.time() + days_to_live_in_seconds
@@ -278,7 +280,7 @@ class MLHubDockerSpawner(DockerSpawner):
         ipam_pool = docker.types.IPAMPool(subnet=next_cidr.exploded,
                                           gateway=(next_cidr.network_address + 1).exploded)
         ipam_config = docker.types.IPAMConfig(pool_configs=[ipam_pool])
-        return client.networks.create(name, ipam=ipam_config, labels=self.default_label)
+        return client.networks.create(name, ipam=ipam_config, labels=self.default_labels)
     
     def connect_hub_to_network(self, network):
         try:

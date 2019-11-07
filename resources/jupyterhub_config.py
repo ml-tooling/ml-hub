@@ -5,6 +5,7 @@ Basic configuration file for jupyterhub.
 import os
 import signal
 import socket
+
 import docker.errors
 
 from mlhubspawner import utils
@@ -42,7 +43,8 @@ def combine_config_dicts(*configs) -> dict:
 
 ### END HELPER FUNCTIONS###
 
-ENV_HUB_NAME = os.environ['HUB_NAME']
+ENV_HUB_NAME_KEY = 'HUB_NAME'
+ENV_HUB_NAME = os.environ[ENV_HUB_NAME_KEY]
 
 # User containers will access hub by container name on the Docker network
 c.JupyterHub.hub_ip = '0.0.0.0' #'research-hub'
@@ -67,7 +69,7 @@ default_env = {"AUTHENTICATE_VIA_JUPYTER": "true", "SHUTDOWN_INACTIVE_KERNELS": 
 c.Spawner.environment = default_env
 
 # Workaround to prevent api problems
-c.Spawner.will_resume = True
+#c.Spawner.will_resume = True
 
 # --- Spawner-specific ----
 c.JupyterHub.spawner_class = 'mlhubspawner.MLHubDockerSpawner' # override in your config if you want to have a different spawner. If it is the or inherits from DockerSpawner, the c.DockerSpawner config can have an effect.
@@ -137,7 +139,23 @@ else:
         print("Could not correctly start MLHub container. " + str(e))
         os.kill(os.getpid(), signal.SIGTERM)
 
-    c.MLHubDockerSpawner.hub_name = ENV_HUB_NAME
+    #c.MLHubDockerSpawner.hub_name = ENV_HUB_NAME
+
+    import sys
+    import json
+    c.JupyterHub.services = [
+        {
+            'name': 'cleanup-service',
+            'admin': True,
+            'url': 'http://127.0.0.1:9000',
+            'environment': {
+                ENV_HUB_NAME_KEY: ENV_HUB_NAME,
+                "DOCKER_CLIENT_KWARGS": json.dumps(client_kwargs), 
+                "DOCKER_TLS_CONFIG": json.dumps(tls_config)
+            },
+            'command': [sys.executable, '/resources/cleanup-service.py']
+        }
+    ]
 
 # Add nativeauthenticator-specific templates
 if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
