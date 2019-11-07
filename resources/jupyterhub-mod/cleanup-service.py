@@ -133,7 +133,15 @@ def remove_expired_workspaces():
             difference = math.ceil(lifetime_timestamp - time.time())
             # container lifetime is exceeded (remaining lifetime is negative)
             if difference < 0:
-                container.remove(v=True, force=True)
+                user_name = container.labels[utils.LABEL_MLHUB_USER]
+                server_name = container.labels[utils.LABEL_MLHUB_SERVER_NAME]
+                url = jupyterhub_api_url + "/users/{user_name}/servers/{servers_name}".format(user_name=user_name, server_name=server_name)
+                r = http.request('DELETE', url, 
+                    headers = {**auth_header}
+                )
+
+                # TODO: also remove the underlying container?
+                # container.remove(v=True, force=True)
 
 class CleanupUserResources(HubAuthenticated, web.RequestHandler):
 
@@ -155,7 +163,7 @@ class CleanupExpiredContainers(HubAuthenticated, web.RequestHandler):
             self.set_status(401)
             self.finish()
             return
-        
+
         remove_expired_workspaces()
 
 app = web.Application([

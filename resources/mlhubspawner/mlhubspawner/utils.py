@@ -16,6 +16,7 @@ LABEL_NVIDIA_VISIBLE_DEVICES = 'nvidia_visible_devices'
 LABEL_EXPIRATION_TIMESTAMP = 'expiration_timestamp_seconds'
 
 LABEL_MLHUB_USER = "mlhub.user"
+LABEL_MLHUB_SERVER_NAME = "mlhub.server_name"
 
 ENV_HUB_NAME = os.getenv("HUB_NAME", "mlhub")
 
