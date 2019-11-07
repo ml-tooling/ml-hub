@@ -27,10 +27,14 @@ def get_origin_label() -> tuple:
 
     return "mlhub.origin", ENV_HUB_NAME
 
+
+def get_lifetime_timestamp(labels: dict) -> float:
+    return float(labels.get(LABEL_EXPIRATION_TIMESTAMP, '0'))
+
 def get_container_metadata(spawner):
     meta_information = []
     container_labels = spawner.get_labels()
-    lifetime_timestamp = spawner.get_lifetime_timestamp(container_labels)
+    lifetime_timestamp = get_lifetime_timestamp(container_labels)
     if lifetime_timestamp != 0:
         difference_in_days = math.ceil((lifetime_timestamp - time.time())/60/60/24)
         meta_information.append("Expires: {}d".format(difference_in_days))

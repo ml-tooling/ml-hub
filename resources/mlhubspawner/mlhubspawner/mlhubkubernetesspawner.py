@@ -159,9 +159,6 @@ class MLHubKubernetesSpawner(KubeSpawner):
     def get_workspace_config(self) -> str:
         return utils.get_workspace_config(self)
 
-    def get_lifetime_timestamp(self, labels: dict) -> float:
-        return float(labels.get(utils.LABEL_EXPIRATION_TIMESTAMP, '0'))
-
     def get_labels(self) -> dict:
         try:
             return self.pod_reflector.pods.get(self.pod_name, None).metadata.labels

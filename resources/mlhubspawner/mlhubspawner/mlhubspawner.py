@@ -303,9 +303,6 @@ class MLHubDockerSpawner(DockerSpawner):
     def get_workspace_config(self) -> str:
         return utils.get_workspace_config(self)
 
-    def get_lifetime_timestamp(self, labels: dict) -> float:
-        return float(labels.get(utils.LABEL_EXPIRATION_TIMESTAMP, '0'))
-
     def is_update_available(self):
         try:
             # compare the last parts of the images, so that also "mltooling/ml-workspace:0.8.7 = ml-workspace:0.8.7" would match

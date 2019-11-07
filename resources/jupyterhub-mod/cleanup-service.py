@@ -8,6 +8,7 @@ import os
 import urllib3
 import json
 import time
+import math
 
 from tornado import web, ioloop
 from jupyterhub.services.auth import HubAuthenticated
@@ -33,6 +34,8 @@ docker_client = utils.init_docker_client(docker_client_kwargs, docker_tls_kwargs
 origin_key, hub_name = utils.get_origin_label()
 origin_label_filter = {"label": "{}={}".format(origin_key, hub_name)}
 
+def get_hub_docker_resources(docker_client_obj):
+    return docker_client_obj.list(filters=origin_label_filter)
 
 def remove_deleted_user_resources(existing_user_names: []):
     """Remove resources for which no user exists anymore by checking whether the label of user name occurs in the existing
@@ -71,7 +74,7 @@ def remove_deleted_user_resources(existing_user_names: []):
                 remove (func): function to call on the docker resource to remove it
         """
 
-        resources = docker_client_obj.list(filters=origin_label_filter)
+        resources = get_hub_docker_resources(docker_client_obj)
         for resource in resources:
             user_label = get_labels(resource)[utils.LABEL_MLHUB_USER]
             if user_label not in existing_user_names:
@@ -110,28 +113,54 @@ def remove_deleted_user_resources(existing_user_names: []):
         lambda res: try_to_remove(res.remove, res)
     )
 
+def get_hub_usernames() -> []:
+    r = http.request('GET', jupyterhub_api_url + "/users", 
+        headers = {**auth_header}
+    )
+
+    data = json.loads(r.data.decode("utf-8"))
+    existing_user_names = []
+    for user in data:
+        existing_user_names.append(user["name"])
+
+    return existing_user_names
+
+def remove_expired_workspaces():
+    hub_containers = get_hub_docker_resources(docker_client.containers)
+    for container in hub_containers:
+        lifetime_timestamp = utils.get_lifetime_timestamp(container.labels)
+        if lifetime_timestamp != 0:
+            difference = math.ceil(lifetime_timestamp - time.time())
+            # container lifetime is exceeded (remaining lifetime is negative)
+            if difference < 0:
+                container.remove(v=True, force=True)
+
 class CleanupUserResources(HubAuthenticated, web.RequestHandler):
 
     @web.authenticated
     def get(self):
-        # TODO: check for admin rights
-        print(self.get_current_user())
+        current_user = self.get_current_user()
+        if current_user.admin is False:
+            self.set_status(401)
+            self.finish()
+            return
+
+        remove_deleted_user_resources(get_hub_usernames())
+
+class CleanupExpiredContainers(HubAuthenticated, web.RequestHandler):
+    @web.authenticated
+    def get(self):
+        current_user = self.get_current_user()
+        if current_user.admin is False:
+            self.set_status(401)
+            self.finish()
+            return
         
-        r = http.request('GET', jupyterhub_api_url + "/users", 
-            headers = {**auth_header}
-        )
-
-        data = json.loads(r.data.decode("utf-8"))
-        existing_user_names = []
-        for user in data:
-            existing_user_names.append(user["name"])
-
-        remove_deleted_user_resources(existing_user_names)
-
-        #self.write()
+        remove_expired_workspaces()
 
 app = web.Application([
-    (r"{}users".format(prefix), CleanupUserResources)
+    (r"{}users".format(prefix), CleanupUserResources),
+    (r"{}expired".format(prefix), CleanupExpiredContainers)
 ])
 
 service_port = int(service_url.split(":")[-1])
