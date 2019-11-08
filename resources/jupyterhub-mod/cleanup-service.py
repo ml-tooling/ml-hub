@@ -14,6 +14,7 @@ from tornado import web, ioloop
 from jupyterhub.services.auth import HubAuthenticated
 
 import docker.errors
+from kubernetes import client, config, stream
 
 from mlhubspawner import utils
 
@@ -29,22 +30,30 @@ execution_mode = os.environ[utils.ENV_NAME_EXECUTION_MODE]
 
 http = urllib3.PoolManager()
 
-docker_client_kwargs = json.loads(os.getenv("DOCKER_CLIENT_KWARGS"))
-docker_tls_kwargs = json.loads(os.getenv("DOCKER_TLS_CONFIG"))
-docker_client = utils.init_docker_client(docker_client_kwargs, docker_tls_kwargs)
+if execution_mode == utils.EXECUTION_MODE_DOCKER:
+    docker_client_kwargs = json.loads(os.getenv("DOCKER_CLIENT_KWARGS"))
+    docker_tls_kwargs = json.loads(os.getenv("DOCKER_TLS_CONFIG"))
+    docker_client = utils.init_docker_client(docker_client_kwargs, docker_tls_kwargs)
+elif execution_mode == utils.EXECUTION_MODE_KUBERNETES:
+    # incluster config is the config given by a service account and it's role permissions
+    config.load_incluster_config()
+    kubernetes_client = client.CoreV1Api()
 
 origin_key, hub_name = utils.get_origin_label()
-origin_label_filter = {"label": "{}={}".format(origin_key, hub_name)}
+origin_label = "{}={}".format(origin_key, hub_name)
+origin_label_filter = {"label": origin_label}
 
 def get_hub_docker_resources(docker_client_obj):
     return docker_client_obj.list(filters=origin_label_filter)
+
+def get_hub_kubernetes_resources(namespaced_list_command, **kwargs):
+    return namespaced_list_command(hub_name, **kwargs).items
 
 def get_resource_labels(resource):
     if execution_mode == utils.EXECUTION_MODE_DOCKER:
         return resource.labels
     elif execution_mode == utils.EXECUTION_MODE_KUBERNETES:
-        # TODO: FINISH
-        return {}
+        return resource.metadata.labels
 
 def remove_deleted_user_resources(existing_user_names: []):
     """Remove resources for which no user exists anymore by checking whether the label of user name occurs in the existing
@@ -138,17 +147,17 @@ def remove_expired_workspaces():
     if execution_mode == utils.EXECUTION_MODE_DOCKER:
         hub_containers = get_hub_docker_resources(docker_client.containers)
     elif execution_mode == utils.EXECUTION_MODE_KUBERNETES:
-        # TODO: finish
-        hub_containers = []
-    
+        hub_containers = get_hub_kubernetes_resources(kubernetes_client.list_namespaced_pod, field_selector="status.phase=Running", label_selector=origin_label)
+
     for container in hub_containers:
-        lifetime_timestamp = utils.get_lifetime_timestamp(get_resource_labels(container))
+        container_labels = get_resource_labels(container)
+        lifetime_timestamp = utils.get_lifetime_timestamp(container_labels)
         if lifetime_timestamp != 0:
             difference = math.ceil(lifetime_timestamp - time.time())
             # container lifetime is exceeded (remaining lifetime is negative)
             if difference < 0:
-                user_name = container.labels[utils.LABEL_MLHUB_USER]
-                server_name = container.labels[utils.LABEL_MLHUB_SERVER_NAME]
+                user_name = container_labels[utils.LABEL_MLHUB_USER]
+                server_name = container_labels[utils.LABEL_MLHUB_SERVER_NAME]
                 url = jupyterhub_api_url + "/users/{user_name}/servers/{servers_name}".format(user_name=user_name, server_name=server_name)
                 r = http.request('DELETE', url, 
                     headers = {**auth_header}
@@ -168,12 +177,13 @@ class CleanupUserResources(HubAuthenticated, web.RequestHandler):
             return
 
         if execution_mode == utils.EXECUTION_MODE_KUBERNETES:
-            self.finish("This method cannot be used in hub execution mode " + execution_mode)
+            self.finish("This method cannot be used in following hub execution mode " + execution_mode)
             return
-        
+
         remove_deleted_user_resources(get_hub_usernames())
 
 class CleanupExpiredContainers(HubAuthenticated, web.RequestHandler):
+
     @web.authenticated
     def get(self):
         current_user = self.get_current_user()
