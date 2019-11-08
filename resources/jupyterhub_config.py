@@ -43,8 +43,9 @@ def combine_config_dicts(*configs) -> dict:
 
 ### END HELPER FUNCTIONS###
 
-ENV_HUB_NAME_KEY = 'HUB_NAME'
-ENV_HUB_NAME = os.environ[ENV_HUB_NAME_KEY]
+ENV_NAME_HUB_NAME = 'HUB_NAME'
+ENV_HUB_NAME = os.environ[ENV_NAME_HUB_NAME]
+ENV_EXECUTION_MODE = os.environ[utils.ENV_NAME_EXECUTION_MODE]
 
 # User containers will access hub by container name on the Docker network
 c.JupyterHub.hub_ip = '0.0.0.0' #'research-hub'
@@ -112,7 +113,7 @@ load_subconfig("{}/jupyterhub_user_config.py".format(os.getenv("_RESOURCES_PATH"
 
 # In Kubernetes mode, load the Kubernetes Jupyterhub config that can be configured via a config.yaml.
 # Those values will override the values set above, as it is loaded afterwards.
-if os.environ[utils.ENV_NAME_EXECUTION_MODE] == utils.EXECUTION_MODE_KUBERNETES:
+if ENV_EXECUTION_MODE == utils.EXECUTION_MODE_KUBERNETES:
     load_subconfig("{}/kubernetes/jupyterhub_chart_config.py".format(os.getenv("_RESOURCES_PATH")))
 
     c.JupyterHub.spawner_class = 'mlhubspawner.MLHubKubernetesSpawner'
@@ -149,7 +150,8 @@ else:
             'admin': True,
             'url': 'http://127.0.0.1:9000',
             'environment': {
-                ENV_HUB_NAME_KEY: ENV_HUB_NAME,
+                ENV_NAME_HUB_NAME: ENV_HUB_NAME,
+                utils.ENV_NAME_EXECUTION_MODE: ENV_EXECUTION_MODE,
                 "DOCKER_CLIENT_KWARGS": json.dumps(client_kwargs), 
                 "DOCKER_TLS_CONFIG": json.dumps(tls_config)
             },

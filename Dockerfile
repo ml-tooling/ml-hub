@@ -157,7 +157,8 @@ ENV \
    START_JHUB=true \
    START_CHP=false \
    EXECUTION_MODE="local" \
-   HUB_NAME="mlhub"
+   HUB_NAME="mlhub" \ 
+   CLEANUP_INTERVAL_SECONDS=3600
 
 ### END CONFIGURATION ###
 

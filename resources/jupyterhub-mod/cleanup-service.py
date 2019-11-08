@@ -9,6 +9,7 @@ import urllib3
 import json
 import time
 import math
+from threading import Thread
 
 from tornado import web, ioloop
 from jupyterhub.services.auth import HubAuthenticated
@@ -30,7 +31,7 @@ execution_mode = os.environ[utils.ENV_NAME_EXECUTION_MODE]
 
 http = urllib3.PoolManager()
 
-if execution_mode == utils.EXECUTION_MODE_DOCKER:
+if execution_mode == utils.EXECUTION_MODE_LOCAL:
     docker_client_kwargs = json.loads(os.getenv("DOCKER_CLIENT_KWARGS"))
     docker_tls_kwargs = json.loads(os.getenv("DOCKER_TLS_CONFIG"))
     docker_client = utils.init_docker_client(docker_client_kwargs, docker_tls_kwargs)
@@ -50,7 +51,7 @@ def get_hub_kubernetes_resources(namespaced_list_command, **kwargs):
     return namespaced_list_command(hub_name, **kwargs).items
 
 def get_resource_labels(resource):
-    if execution_mode == utils.EXECUTION_MODE_DOCKER:
+    if execution_mode == utils.EXECUTION_MODE_LOCAL:
         return resource.labels
     elif execution_mode == utils.EXECUTION_MODE_KUBERNETES:
         return resource.metadata.labels
@@ -61,7 +62,13 @@ def remove_deleted_user_resources(existing_user_names: []):
 
         Args:
             existing_user_names: list of user names that exist in the JupyterHub database
+
+        Raises:
+            UserWarning: in Kubernetes mode, the function does not work
     """
+
+    if execution_mode == utils.EXECUTION_MODE_KUBERNETES:
+        raise UserWarning("This method cannot be used in following hub execution mode " + execution_mode)
 
     def try_to_remove(remove_callback, resource) -> bool:
         """Call the remove callback until the call succeeds or until the number of tries is exceeded.
@@ -89,7 +96,7 @@ def remove_deleted_user_resources(existing_user_names: []):
             Args:
                 docker_client_obj: A Python docker client object, such as docker_client.containers, docker_client.networks,... It must implement a .list() function (check https://docker-py.readthedocs.io/en/stable/containers.html)
                 get_labels (func): function to call on the docker resource to get the labels
-                remove (func): function to call on the docker resource to remove it
+                remove (func): function to call on the docker resource to remove it                
         """
 
         resources = get_hub_docker_resources(docker_client_obj)
@@ -144,7 +151,7 @@ def get_hub_usernames() -> []:
     return existing_user_names
 
 def remove_expired_workspaces():
-    if execution_mode == utils.EXECUTION_MODE_DOCKER:
+    if execution_mode == utils.EXECUTION_MODE_LOCAL:
         hub_containers = get_hub_docker_resources(docker_client.containers)
     elif execution_mode == utils.EXECUTION_MODE_KUBERNETES:
         hub_containers = get_hub_kubernetes_resources(kubernetes_client.list_namespaced_pod, field_selector="status.phase=Running", label_selector=origin_label)
@@ -155,16 +162,17 @@ def remove_expired_workspaces():
         if lifetime_timestamp != 0:
             difference = math.ceil(lifetime_timestamp - time.time())
             # container lifetime is exceeded (remaining lifetime is negative)
-            if difference < 0:
+            if difference < 48 * 24 * 60 * 60: #0:
                 user_name = container_labels[utils.LABEL_MLHUB_USER]
                 server_name = container_labels[utils.LABEL_MLHUB_SERVER_NAME]
-                url = jupyterhub_api_url + "/users/{user_name}/servers/{servers_name}".format(user_name=user_name, server_name=server_name)
+                url = jupyterhub_api_url + "/users/{user_name}/servers/{server_name}".format(user_name=user_name, server_name=server_name)
                 r = http.request('DELETE', url, 
                     headers = {**auth_header}
                 )
 
-                # TODO: also remove the underlying container?
-                # container.remove(v=True, force=True)
+                if r.status == 202 or r.status == 204:
+                    print("Delete expired container " + container.name)
+                    container.remove(v=True, force=True)
 
 class CleanupUserResources(HubAuthenticated, web.RequestHandler):
 
@@ -176,11 +184,10 @@ class CleanupUserResources(HubAuthenticated, web.RequestHandler):
             self.finish()
             return
 
-        if execution_mode == utils.EXECUTION_MODE_KUBERNETES:
-            self.finish("This method cannot be used in following hub execution mode " + execution_mode)
-            return
-
-        remove_deleted_user_resources(get_hub_usernames())
+        try:
+            remove_deleted_user_resources(get_hub_usernames())
+        except UserWarning as e:
+            self.finish(str(e))
 
 class CleanupExpiredContainers(HubAuthenticated, web.RequestHandler):
 
@@ -201,4 +208,17 @@ app = web.Application([
 
 service_port = int(service_url.split(":")[-1])
 app.listen(service_port)
+
+def internal_service_caller():
+    clean_interval_seconds = os.getenv("CLEANUP_INTERVAL_SECONDS")
+    while True and clean_interval_seconds != -1:
+        time.sleep(clean_interval_seconds)
+        try:
+            remove_deleted_user_resources(get_hub_usernames())
+        except UserWarning:
+            pass
+        remove_expired_workspaces()
+
+Thread(target=internal_service_caller).start()
+
 ioloop.IOLoop.current().start()

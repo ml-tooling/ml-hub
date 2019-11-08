@@ -85,6 +85,16 @@ Here are the additional environment variables for the hub:
         <td>mlhub</td>
     </tr>
     <tr>
+        <td>EXECUTION_MODE</td>
+        <td>Defines in which execution mode the hub is running in. Value is one of [docker | k8s]</td>
+        <td>local</td>
+    </tr>
+    <tr>
+        <td>CLEANUP_INTERVAL_SECONDS</td>
+        <td>Interval in which expired and not-used resources are deleted. Set to -1 to disable the automatic cleanup.</td>
+        <td>3600</td>
+    </tr>
+    <tr>
         <td>SSL_ENABLED</td>
         <td>Enable SSL. If you don't provide an ssl certificate as described in <a href="https://github.com/ml-tooling/ml-hub#enable-sslhttps">Section "Enable SSL/HTTPS"</a>, certificates will be generated automatically. As this auto-generated certificate is not signed, you have to trust it in the browser. Without ssl enabled, ssh access won't work as the container uses a single port and has to tell https and ssh traffic apart.</td>
         <td>false</td>
