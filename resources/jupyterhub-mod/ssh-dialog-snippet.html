@@ -1,0 +1,38 @@
+<!-- This is a template snippet that can be included in html files that extend 'page.html'. 
+    It is for showing a dialog with the command to setup ssh for a specific workspace -->
+
+<script>
+$(".ssh-server").click(function() {
+    let el = $(this);
+    let row = el.parent().parent();
+    let user = row.data("user");
+    let serverName = row.data("server-name");
+    if (serverName && serverName !== '') {
+        serverName = "/" + serverName; // do it like this, otherwise there is one slash too much in the url if the serverName is empty
+    }
+    // the name ssh-setup-dialog is created by the `call modal` command above and the provided name there
+    let dialog = $("#ssh-setup-dialog");
+    dialog.find(".server-name").text(user + serverName);
+    let setupCommandTextField = dialog.find(".ssh-setup-command");
+    dialog.find('.copy-clipboard-button').click(() => {setupCommandTextField.select(); window.document.execCommand('copy');})
+    fetch("{{ prefix }}user/" + user + serverName + "/tooling/ssh/setup-command?origin=" + window.location.origin)
+        .then(res => {
+            // If the admin is not authorized to access the workspace, the request is redirected and the flag is set to true
+            if (res.status === 302 || res.redirected === true) {
+                return "You are not authorized. Try to access the server first and authorize. If needed, go to the workspace and click on 'Open Tools - SSH Access'."
+            }
+            else if (!res.ok) {
+                return "Unfortunately some error occurred.";
+            }
+
+            return res.text();
+        })
+        .then(res =>  setupCommandTextField.text(res));
+    dialog.modal();
+  });
+</script>
+
+{% call modal('SSH Setup', btn_label="Copy to Clipboard", btn_class='btn-primary copy-clipboard-button') %}
+  Execute this command to setup the SSH connection to server <span class="server-name"></span>: 
+  <textarea class="ssh-setup-command" readonly="true" style="width: 100%; padding: 4px; overflow-wrap: normal;"></textarea>
+{% endcall %}

@@ -83,7 +83,7 @@
         </td>
       </tr>
       {% for spawner in named_spawners %}
-      <tr class="home-server-row" data-server-name="{{ spawner.name }}">
+      <tr class="home-server-row" data-server-name="{{ spawner.name }}" data-user="{{ user.name }}">
         {# name #}
         <td>{{ spawner.name }}</td>
         {# url #}
@@ -114,6 +114,9 @@
           <a role="button" class="delete-server btn btn-xs btn-danger{% if spawner.active %} hidden{% endif %}" id="delete-{{ spawner.name }}">delete</a>
           <a role="button" class="info-server btn btn-xs btn-primary" onclick="showWorkspaceInfo(this, '{{ spawner.get_workspace_config() if spawner.get_workspace_config is defined }}')">
             info
+          </a>
+          <a role="button" class="ssh-server btn btn-xs btn-primary{% if not spawner.active %} hidden{% endif %}">
+            ssh access
           </a>
         </td>
       </tr>
@@ -163,6 +166,8 @@ $(document).ready(() => {
         }).catch(() => {});
 });
 </script>
+
+{% include 'ssh-dialog-snippet.html' %}
 
 {% include 'info-dialog-snippet.html' %}
 
