@@ -24,8 +24,19 @@ from jupyterhub.auth import Authenticator
 original_normalize_username = Authenticator.normalize_username
 def custom_normalize_username(self, username):
     username = original_normalize_username(self, username)
-    for forbidden_username_char in [" ", ",", ";", "."]:
-        username = username.replace(forbidden_username_char, "")
+    more_than_one_forbidden_char = False
+    for forbidden_username_char in [" ", ",", ";", ".", "-"]:
+        # Replace special characters with a non-special character. Cannot just be empty, like "", because then it could happen that two distinct user names are transformed into the same username.
+        # Example: "foo, bar" and "fo, obar" would both become "foobar".
+        replace_char = "0"
+        # If there is more than one special character, just replace one of them. Otherwise, "foo, bar" would become "foo00bar" instead of "foo0bar"
+        if more_than_one_forbidden_char == True:
+            replace_char = ""
+        temp_username = username
+        username = username.replace(forbidden_username_char, replace_char)
+        if username != temp_username:
+            more_than_one_forbidden_char = True
+
     return username
 Authenticator.normalize_username = custom_normalize_username
 
