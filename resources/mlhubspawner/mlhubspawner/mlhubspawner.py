@@ -58,9 +58,8 @@ class MLHubDockerSpawner(DockerSpawner):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        origin_key, self.hub_name = utils.get_origin_label()
-        self.default_labels = {origin_key: self.hub_name, utils.LABEL_MLHUB_USER: self.user.name, utils.LABEL_MLHUB_SERVER_NAME: self.name}
-
+        self.hub_name = utils.ENV_HUB_NAME
+        self.default_labels = {utils.LABEL_MLHUB_ORIGIN: self.hub_name, utils.LABEL_MLHUB_USER: self.user.name, utils.LABEL_MLHUB_SERVER_NAME: self.name}
         # Get the MLHub container name to be used as the DNS name for the spawned workspaces, so they can connect to the Hub even if the container is
         # removed and restarted
         client = self.highlevel_docker_client

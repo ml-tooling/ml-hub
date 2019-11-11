@@ -5,8 +5,11 @@ Basic configuration file for jupyterhub.
 import os
 import signal
 import socket
+import sys
 
 import docker.errors
+
+import json
 
 from mlhubspawner import utils
 from subprocess import call
@@ -111,6 +114,14 @@ c.JupyterHub.authenticator_class = NATIVE_AUTHENTICATOR_CLASS # override in your
 # See https://traitlets.readthedocs.io/en/stable/config.html#configuration-files-inheritance
 load_subconfig("{}/jupyterhub_user_config.py".format(os.getenv("_RESOURCES_PATH")))
 
+
+
+service_environment = {
+    ENV_NAME_HUB_NAME: ENV_HUB_NAME,
+    utils.ENV_NAME_EXECUTION_MODE: ENV_EXECUTION_MODE,
+    utils.ENV_NAME_CLEANUP_INTERVAL_SECONDS: os.getenv(utils.ENV_NAME_CLEANUP_INTERVAL_SECONDS),
+}
+
 # In Kubernetes mode, load the Kubernetes Jupyterhub config that can be configured via a config.yaml.
 # Those values will override the values set above, as it is loaded afterwards.
 if ENV_EXECUTION_MODE == utils.EXECUTION_MODE_KUBERNETES:
@@ -126,7 +137,19 @@ if ENV_EXECUTION_MODE == utils.EXECUTION_MODE_KUBERNETES:
     # if not isinstance(c.KubeSpawner.environment, dict):
     #     c.KubeSpawner.environment = {}
     c.KubeSpawner.environment.update(default_env)
-else:
+
+    # For cleanup-service
+    ## Env variables that are used by the Python Kubernetes library to load the incluster config
+    SERVICE_HOST_ENV_NAME = "KUBERNETES_SERVICE_HOST"
+    SERVICE_PORT_ENV_NAME = "KUBERNETES_SERVICE_PORT"
+    service_environment.update({
+        SERVICE_HOST_ENV_NAME: os.getenv(SERVICE_HOST_ENV_NAME), 
+        SERVICE_PORT_ENV_NAME: os.getenv(SERVICE_PORT_ENV_NAME)
+    })
+    service_host = "hub"
+    
+
+elif ENV_EXECUTION_MODE == utils.EXECUTION_MODE_LOCAL:
     client_kwargs = {**get_or_init(c.DockerSpawner.client_kwargs, dict), **get_or_init(c.MLHubDockerSpawner.client_kwargs, dict)}
     tls_config = {**get_or_init(c.DockerSpawner.tls_config, dict), **get_or_init(c.MLHubDockerSpawner.tls_config, dict)}
 
@@ -140,24 +163,10 @@ else:
         print("Could not correctly start MLHub container. " + str(e))
         os.kill(os.getpid(), signal.SIGTERM)
 
+    # For cleanup-service
+    service_environment.update({"DOCKER_CLIENT_KWARGS": json.dumps(client_kwargs), "DOCKER_TLS_CONFIG": json.dumps(tls_config)})
+    service_host = "127.0.0.1"
     #c.MLHubDockerSpawner.hub_name = ENV_HUB_NAME
-
-    import sys
-    import json
-    c.JupyterHub.services = [
-        {
-            'name': 'cleanup-service',
-            'admin': True,
-            'url': 'http://127.0.0.1:9000',
-            'environment': {
-                ENV_NAME_HUB_NAME: ENV_HUB_NAME,
-                utils.ENV_NAME_EXECUTION_MODE: ENV_EXECUTION_MODE,
-                "DOCKER_CLIENT_KWARGS": json.dumps(client_kwargs), 
-                "DOCKER_TLS_CONFIG": json.dumps(tls_config)
-            },
-            'command': [sys.executable, '/resources/cleanup-service.py']
-        }
-    ]
 
 # Add nativeauthenticator-specific templates
 if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
@@ -167,3 +176,13 @@ if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
     # if not isinstance(c.JupyterHub.template_paths, list):
     #     c.JupyterHub.template_paths = []
     c.JupyterHub.template_paths.append("{}/templates/".format(os.path.dirname(nativeauthenticator.__file__)))
+
+c.JupyterHub.services = [
+    {
+        'name': 'cleanup-service',
+        'admin': True,
+        'url': 'http://{}:9000'.format(service_host),
+        'environment': service_environment,
+        'command': [sys.executable, '/resources/cleanup-service.py']
+    }
+]

@@ -21,17 +21,10 @@ LABEL_MLHUB_SERVER_NAME = "mlhub.server_name"
 ENV_NAME_EXECUTION_MODE = "EXECUTION_MODE"
 EXECUTION_MODE_LOCAL = "local"
 EXECUTION_MODE_KUBERNETES = "k8s"
+ENV_NAME_CLEANUP_INTERVAL_SECONDS = "CLEANUP_INTERVAL_SECONDS"
 
+LABEL_MLHUB_ORIGIN = "mlhub.origin"
 ENV_HUB_NAME = os.getenv("HUB_NAME", "mlhub")
-
-def get_origin_label() -> tuple:
-    """
-    Returns:
-        tuple (str, str): (key, value) for origin label
-    """
-
-    return "mlhub.origin", ENV_HUB_NAME
-
 
 def get_lifetime_timestamp(labels: dict) -> float:
     return float(labels.get(LABEL_EXPIRATION_TIMESTAMP, '0'))
