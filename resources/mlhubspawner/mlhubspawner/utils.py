@@ -29,23 +29,6 @@ ENV_HUB_NAME = os.getenv("HUB_NAME", "mlhub")
 def get_lifetime_timestamp(labels: dict) -> float:
     return float(labels.get(LABEL_EXPIRATION_TIMESTAMP, '0'))
 
-def get_container_metadata(spawner):
-    meta_information = []
-    container_labels = spawner.get_labels()
-    lifetime_timestamp = get_lifetime_timestamp(container_labels)
-    if lifetime_timestamp != 0:
-        difference_in_days = math.ceil((lifetime_timestamp - time.time())/60/60/24)
-        meta_information.append("Expires: {}d".format(difference_in_days))
-    
-    nvidia_visible_devices = container_labels.get(LABEL_NVIDIA_VISIBLE_DEVICES, "")
-    if nvidia_visible_devices != "":
-        meta_information.append("GPUs: {}".format(nvidia_visible_devices))
-    
-    if len(meta_information) == 0:
-        return ""
-    
-    return "({})".format(", ".join(meta_information))
-
 def init_docker_client(client_kwargs: dict, tls_config: dict) -> docker.DockerClient:
     """Create a docker client. 
     The configuration is done the same way DockerSpawner initializes the low-level API client.
@@ -74,7 +57,15 @@ def load_state(spawner, state):
         spawner.saved_user_options = state.get("saved_user_options")
 
 def get_workspace_config(spawner) -> str:
-    if not hasattr(spawner, "saved_user_options"):
-        return "{}"
+    workspace_config = {}
+    if hasattr(spawner, "saved_user_options"):
+        workspace_config = {**spawner.saved_user_options}
+
+    # Add remaining lifetime information
+    lifetime_timestamp = get_lifetime_timestamp(spawner.get_labels())
+    if lifetime_timestamp != 0:
+        difference_in_seconds = math.ceil(lifetime_timestamp - time.time())
+        difference_in_days = math.ceil(difference_in_seconds/60/60/24)
+        workspace_config.update({"remaining_lifetime_seconds": difference_in_seconds, "remaining_lifetime_days": difference_in_days})
     
-    return json.dumps(spawner.saved_user_options)
+    return json.dumps(workspace_config)

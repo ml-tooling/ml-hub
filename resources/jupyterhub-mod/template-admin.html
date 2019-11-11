@@ -49,7 +49,6 @@
         {%- if spawner.name -%}
         /{{ spawner.name }}
         {%- endif -%}
-        <span>  {{ spawner.get_container_metadata() if spawner.get_container_metadata is defined }} {# comment {{ current_user.spawner_class().get_days_to_live() }} #}</span>
       </td>
 
       <td class="admin-col col-sm-2">

@@ -293,12 +293,6 @@ class MLHubDockerSpawner(DockerSpawner):
                     "Could not connect mlhub to the network and, thus, cannot create the container.")
                 return
     
-    def get_container_metadata(self) -> str:
-        if self.container_id is None or self.container_id == '':
-            return ""
-
-        return utils.get_container_metadata(self)
-    
     def get_workspace_config(self) -> str:
         return utils.get_workspace_config(self)
 
