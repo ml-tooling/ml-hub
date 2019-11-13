@@ -33,6 +33,7 @@ MLHub is based on [Jupyterhub](https://github.com/jupyterhub/jupyterhub) with co
 - 🖊️ Set configuration parameters such as CPU-limits for started workspaces. 
 - 🖥 Access additional tools within the started workspaces by having secured routes.
 - 🎛 Tunnel SSH connections to workspace containers.
+- 🐳 Focused on Docker and Kubernetes with enhanced functionality.
 
 ## Getting Started
 
@@ -218,7 +219,7 @@ The "Days to live" flag is purely informational currently and can be seen in the
 
 ### Cleanup Service
 
-MLHub contains a cleanup service that is started as a [JupyterHub service](https://jupyterhub.readthedocs.io/en/stable/reference/services.html) inside the hub container. It can be accessed as a REST-API by an admin, but it is also triggered automatically every X timesteps when not disabled (see config for `CLEANUP_INTERVAL_SECONDS`). The service enhances the JupyterHub functionality with regards to the Docker and Kubernetes world. "Containers" is hereby used interchangeably for Docker containers and Kubernetes pods.
+JupyterHub was originally not created with Docker or Kubernetes in mind, which can result in unfavorable scenarios such as that containers are stopped but not deleted on the host. Furthermore, our custom spawners might create some artifacts that should be cleaned up as well. MLHub contains a cleanup service that is started as a [JupyterHub service](https://jupyterhub.readthedocs.io/en/stable/reference/services.html) inside the hub container. It can be accessed as a REST-API by an admin, but it is also triggered automatically every X timesteps when not disabled (see config for `CLEANUP_INTERVAL_SECONDS`). The service enhances the JupyterHub functionality with regards to the Docker and Kubernetes world. "Containers" is hereby used interchangeably for Docker containers and Kubernetes pods.
 The service has two endpoints which can be reached under the Hub service url `/services/cleanup-service/*` with admin permissions.
 
 - `GET /services/cleanup-service/users`: This endpoint is currently doing anything only in Docker-local mode. There, it will check for resources of deleted users, so users who are not in the JupyterHub database anymore, and delete them. This includes containers, networks, and volumes. This is done by looking for labeled Docker resources that point to containers started by hub and belonging to the specific users.
