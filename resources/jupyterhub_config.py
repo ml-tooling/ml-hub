@@ -5,7 +5,11 @@ Basic configuration file for jupyterhub.
 import os
 import signal
 import socket
+import sys
+
 import docker.errors
+
+import json
 
 from mlhubspawner import utils
 from subprocess import call
@@ -20,8 +24,19 @@ from jupyterhub.auth import Authenticator
 original_normalize_username = Authenticator.normalize_username
 def custom_normalize_username(self, username):
     username = original_normalize_username(self, username)
-    for forbidden_username_char in [" ", ",", ";", "."]:
-        username = username.replace(forbidden_username_char, "")
+    more_than_one_forbidden_char = False
+    for forbidden_username_char in [" ", ",", ";", ".", "-"]:
+        # Replace special characters with a non-special character. Cannot just be empty, like "", because then it could happen that two distinct user names are transformed into the same username.
+        # Example: "foo, bar" and "fo, obar" would both become "foobar".
+        replace_char = "0"
+        # If there is more than one special character, just replace one of them. Otherwise, "foo, bar" would become "foo00bar" instead of "foo0bar"
+        if more_than_one_forbidden_char == True:
+            replace_char = ""
+        temp_username = username
+        username = username.replace(forbidden_username_char, replace_char)
+        if username != temp_username:
+            more_than_one_forbidden_char = True
+
     return username
 Authenticator.normalize_username = custom_normalize_username
 
@@ -42,7 +57,9 @@ def combine_config_dicts(*configs) -> dict:
 
 ### END HELPER FUNCTIONS###
 
-ENV_HUB_NAME = os.environ['HUB_NAME']
+ENV_NAME_HUB_NAME = 'HUB_NAME'
+ENV_HUB_NAME = os.environ[ENV_NAME_HUB_NAME]
+ENV_EXECUTION_MODE = os.environ[utils.ENV_NAME_EXECUTION_MODE]
 
 # User containers will access hub by container name on the Docker network
 c.JupyterHub.hub_ip = '0.0.0.0' #'research-hub'
@@ -67,7 +84,7 @@ default_env = {"AUTHENTICATE_VIA_JUPYTER": "true", "SHUTDOWN_INACTIVE_KERNELS": 
 c.Spawner.environment = default_env
 
 # Workaround to prevent api problems
-c.Spawner.will_resume = True
+#c.Spawner.will_resume = True
 
 # --- Spawner-specific ----
 c.JupyterHub.spawner_class = 'mlhubspawner.MLHubDockerSpawner' # override in your config if you want to have a different spawner. If it is the or inherits from DockerSpawner, the c.DockerSpawner config can have an effect.
@@ -108,9 +125,17 @@ c.JupyterHub.authenticator_class = NATIVE_AUTHENTICATOR_CLASS # override in your
 # See https://traitlets.readthedocs.io/en/stable/config.html#configuration-files-inheritance
 load_subconfig("{}/jupyterhub_user_config.py".format(os.getenv("_RESOURCES_PATH")))
 
+
+
+service_environment = {
+    ENV_NAME_HUB_NAME: ENV_HUB_NAME,
+    utils.ENV_NAME_EXECUTION_MODE: ENV_EXECUTION_MODE,
+    utils.ENV_NAME_CLEANUP_INTERVAL_SECONDS: os.getenv(utils.ENV_NAME_CLEANUP_INTERVAL_SECONDS),
+}
+
 # In Kubernetes mode, load the Kubernetes Jupyterhub config that can be configured via a config.yaml.
 # Those values will override the values set above, as it is loaded afterwards.
-if os.environ['EXECUTION_MODE'] == "k8s":
+if ENV_EXECUTION_MODE == utils.EXECUTION_MODE_KUBERNETES:
     load_subconfig("{}/kubernetes/jupyterhub_chart_config.py".format(os.getenv("_RESOURCES_PATH")))
 
     c.JupyterHub.spawner_class = 'mlhubspawner.MLHubKubernetesSpawner'
@@ -123,7 +148,19 @@ if os.environ['EXECUTION_MODE'] == "k8s":
     # if not isinstance(c.KubeSpawner.environment, dict):
     #     c.KubeSpawner.environment = {}
     c.KubeSpawner.environment.update(default_env)
-else:
+
+    # For cleanup-service
+    ## Env variables that are used by the Python Kubernetes library to load the incluster config
+    SERVICE_HOST_ENV_NAME = "KUBERNETES_SERVICE_HOST"
+    SERVICE_PORT_ENV_NAME = "KUBERNETES_SERVICE_PORT"
+    service_environment.update({
+        SERVICE_HOST_ENV_NAME: os.getenv(SERVICE_HOST_ENV_NAME), 
+        SERVICE_PORT_ENV_NAME: os.getenv(SERVICE_PORT_ENV_NAME)
+    })
+    service_host = "hub"
+    
+
+elif ENV_EXECUTION_MODE == utils.EXECUTION_MODE_LOCAL:
     client_kwargs = {**get_or_init(c.DockerSpawner.client_kwargs, dict), **get_or_init(c.MLHubDockerSpawner.client_kwargs, dict)}
     tls_config = {**get_or_init(c.DockerSpawner.tls_config, dict), **get_or_init(c.MLHubDockerSpawner.tls_config, dict)}
 
@@ -137,7 +174,10 @@ else:
         print("Could not correctly start MLHub container. " + str(e))
         os.kill(os.getpid(), signal.SIGTERM)
 
-    c.MLHubDockerSpawner.hub_name = ENV_HUB_NAME
+    # For cleanup-service
+    service_environment.update({"DOCKER_CLIENT_KWARGS": json.dumps(client_kwargs), "DOCKER_TLS_CONFIG": json.dumps(tls_config)})
+    service_host = "127.0.0.1"
+    #c.MLHubDockerSpawner.hub_name = ENV_HUB_NAME
 
 # Add nativeauthenticator-specific templates
 if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
@@ -147,3 +187,13 @@ if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
     # if not isinstance(c.JupyterHub.template_paths, list):
     #     c.JupyterHub.template_paths = []
     c.JupyterHub.template_paths.append("{}/templates/".format(os.path.dirname(nativeauthenticator.__file__)))
+
+c.JupyterHub.services = [
+    {
+        'name': 'cleanup-service',
+        'admin': True,
+        'url': 'http://{}:9000'.format(service_host),
+        'environment': service_environment,
+        'command': [sys.executable, '/resources/cleanup-service.py']
+    }
+]
