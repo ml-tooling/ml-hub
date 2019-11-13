@@ -25,7 +25,7 @@
   <a href="#contribution">Contribution</a>
 </p>
 
-MLHub is based on [Jupyterhub](https://github.com/jupyterhub/jupyterhub). MLHub allows to create and manage multiple [workspaces](https://github.com/ml-tooling/ml-workspace), for example to distribute them to a group of people or within a team.
+MLHub is based on [Jupyterhub](https://github.com/jupyterhub/jupyterhub) with complete focus on Docker and Kubernetes. MLHub allows to create and manage multiple [workspaces](https://github.com/ml-tooling/ml-workspace), for example to distribute them to a group of people or within a team.
 
 ## Highlights
 
@@ -33,6 +33,7 @@ MLHub is based on [Jupyterhub](https://github.com/jupyterhub/jupyterhub). MLHub 
 - 🖊️ Set configuration parameters such as CPU-limits for started workspaces. 
 - 🖥 Access additional tools within the started workspaces by having secured routes.
 - 🎛 Tunnel SSH connections to workspace containers.
+- 🐳 Focused on Docker and Kubernetes with enhanced functionality.
 
 ## Getting Started
 
@@ -61,7 +62,10 @@ For Kubernetes deployment, we forked and modified [zero-to-jupyterhub-k8s](https
 
 ### Configuration
 
-In the default config, a user named `admin` can register and access the hub. If you use a different authenticator, you might want to set a different user as initial admin user as well.
+#### Default Login
+
+When using the default config - so leaving the Jupyterhub config `c.Authenticator.admin_users` as it is -, a user named `admin` can access the hub with admin rights. If you use the default `NativeAuthenticator` as authenticator, youc must register the user `admin` with a password of your choice first before login in.
+If you use a different authenticator, you might want to set a different user as initial admin user as well, for example in case of using oauth you want to set `c.Authenticator.admin_users` to a username returned by the oauth login.
 
 #### Environment Variables
 
@@ -80,6 +84,18 @@ Here are the additional environment variables for the hub:
         The value must be DNS compliant and must be between 1 and 5 characters long.
         </td>
         <td>mlhub</td>
+    </tr>
+    <tr>
+        <td>EXECUTION_MODE</td>
+        <td>Defines in which execution mode the hub is running in. Value is one of [docker | k8s]</td>
+        <td>local</td>
+    </tr>
+    <tr>
+        <td>CLEANUP_INTERVAL_SECONDS</td>
+        <td>
+            Interval in which expired and not-used resources are deleted. Set to -1 to disable the automatic cleanup. For more information, see Section <a href="https://github.com/ml-tooling/ml-hub#cleanup-service">Cleanup Service</a>.
+        </td>
+        <td>3600</td>
     </tr>
     <tr>
         <td>SSL_ENABLED</td>
@@ -113,6 +129,8 @@ Here are the additional environment variables for the hub:
 > ℹ️ _Via the START\_* environment variables, you can define what is started within the container. It's like this since the mlhub image is used in our Kubernetes setup for both, the hub and the proxy container. We did not want to break those functionalities into different images for now._
 
 #### Jupyterhub Config
+
+##### Docker-local
 
 Jupyterhub itself is configured via a `config.py` file. In case of MLHub, a default config file is stored under `/resources/jupyterhub_config.py`. If you want to override settings or set extra ones, you can put another config file under `/resources/jupyterhub_user_config.py`. Following settings should probably not be overriden:
 - `c.Spawner.environment` - we set default variables there. Instead of overriding it, you can add extra variables to the existing dict, e.g. via `c.Spawner.environment["myvar"] = "myvalue"`.
@@ -198,6 +216,15 @@ When named servers are allowed and the hub is started with the default config, y
 The "Days to live" flag is purely informational currently and can be seen in the admin view; it should help admins to keep an overview of workspaces.
 
 <img width=100% alt="Picture of admin panel" src="https://github.com/ml-tooling/ml-hub/raw/master/docs/images/create-workspace-options.png">
+
+### Cleanup Service
+
+JupyterHub was originally not created with Docker or Kubernetes in mind, which can result in unfavorable scenarios such as that containers are stopped but not deleted on the host. Furthermore, our custom spawners might create some artifacts that should be cleaned up as well. MLHub contains a cleanup service that is started as a [JupyterHub service](https://jupyterhub.readthedocs.io/en/stable/reference/services.html) inside the hub container. It can be accessed as a REST-API by an admin, but it is also triggered automatically every X timesteps when not disabled (see config for `CLEANUP_INTERVAL_SECONDS`). The service enhances the JupyterHub functionality with regards to the Docker and Kubernetes world. "Containers" is hereby used interchangeably for Docker containers and Kubernetes pods.
+The service has two endpoints which can be reached under the Hub service url `/services/cleanup-service/*` with admin permissions.
+
+- `GET /services/cleanup-service/users`: This endpoint is currently doing anything only in Docker-local mode. There, it will check for resources of deleted users, so users who are not in the JupyterHub database anymore, and delete them. This includes containers, networks, and volumes. This is done by looking for labeled Docker resources that point to containers started by hub and belonging to the specific users.
+
+- `GET /services/cleanup-service/expired`: When starting a named workspace, an expiration date can be assigned to it. This endpoint will delete all containers that are expired. The respective named server is deleted from the JupyterHub database and also the Docker/Kubernetes resource is deleted.
 
 ## Contribution
 

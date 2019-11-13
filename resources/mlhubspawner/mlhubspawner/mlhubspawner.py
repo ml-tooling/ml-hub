@@ -47,7 +47,7 @@ def has_complete_network_information(network):
 class MLHubDockerSpawner(DockerSpawner):
     """Provides the possibility to spawn docker containers with specific options, such as resource limits (CPU and Memory), Environment Variables, ..."""
 
-    hub_name = Unicode(config=True, help="Name of the hub container.")
+    #hub_name = Unicode(config=True, help="Name of the hub container.")
 
     workspace_images = List(
         trait = Unicode(),
@@ -58,11 +58,11 @@ class MLHubDockerSpawner(DockerSpawner):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
+        self.hub_name = utils.ENV_HUB_NAME
+        self.default_labels = {utils.LABEL_MLHUB_ORIGIN: self.hub_name, utils.LABEL_MLHUB_USER: self.user.name, utils.LABEL_MLHUB_SERVER_NAME: self.name}
         # Get the MLHub container name to be used as the DNS name for the spawned workspaces, so they can connect to the Hub even if the container is
         # removed and restarted
         client = self.highlevel_docker_client
-        self.default_label = {"origin": self.hub_name}
 
         # Connect MLHub to the existing workspace networks (in case of removing / recreation). By this, the hub can connect to the existing
         # workspaces and does not have to restart them.
@@ -149,13 +149,15 @@ class MLHubDockerSpawner(DockerSpawner):
             (str, int): container's ip address or '127.0.0.1', container's port
         """
 
+        self.saved_user_options = self.user_options
+
         if self.user_options.get('image'):
             self.image = self.user_options.get('image')
 
         extra_host_config = {}
         if self.user_options.get('cpu_limit'):
             # nano_cpus cannot be bigger than the number of CPUs of the machine (this method would currently not work in a cluster, as machines could be different than the machine where the runtime-manager and this code run.
-            max_available_cpus = self.resource_information.cpu_count
+            max_available_cpus = self.resource_information["cpu_count"]
             limited_cpus = min(
                 int(self.user_options.get('cpu_limit')), max_available_cpus)
 
@@ -169,11 +171,12 @@ class MLHubDockerSpawner(DockerSpawner):
         if self.user_options.get('is_mount_volume') == 'on':
             # {username} and {servername} will be automatically replaced by DockerSpawner with the right values as in template_namespace
             #volumeName = self.name_template.format(prefix=self.prefix)
+            self.highlevel_docker_client.volumes.create(name=self.object_name, labels=self.default_labels)
             self.volumes = {self.object_name: "/workspace"}
 
         extra_create_kwargs = {}
         # set default label 'origin' to know for sure which containers where started via the hub
-        extra_create_kwargs['labels'] = self.default_label
+        extra_create_kwargs['labels'] = self.default_labels
         if self.user_options.get('days_to_live'):
             days_to_live_in_seconds = int(self.user_options.get('days_to_live')) * 24 * 60 * 60 # days * hours_per_day * minutes_per_hour * seconds_per_minute
             expiration_timestamp = time.time() + days_to_live_in_seconds
@@ -276,7 +279,7 @@ class MLHubDockerSpawner(DockerSpawner):
         ipam_pool = docker.types.IPAMPool(subnet=next_cidr.exploded,
                                           gateway=(next_cidr.network_address + 1).exploded)
         ipam_config = docker.types.IPAMConfig(pool_configs=[ipam_pool])
-        return client.networks.create(name, ipam=ipam_config, labels=self.default_label)
+        return client.networks.create(name, ipam=ipam_config, labels=self.default_labels)
     
     def connect_hub_to_network(self, network):
         try:
@@ -290,18 +293,16 @@ class MLHubDockerSpawner(DockerSpawner):
                     "Could not connect mlhub to the network and, thus, cannot create the container.")
                 return
     
-    def get_container_metadata(self) -> str:
-        if self.container_id is None or self.container_id == '':
-            return ""
-
-        return utils.get_container_metadata(self)
-
-    def get_lifetime_timestamp(self, labels: dict) -> float:
-        return float(labels.get(utils.LABEL_EXPIRATION_TIMESTAMP, '0'))
+    def get_workspace_config(self) -> str:
+        return utils.get_workspace_config(self)
 
     def is_update_available(self):
         try:
-            return self.image != self.highlevel_docker_client.containers.get(self.container_id).image.tags[0]
+            # compare the last parts of the images, so that also "mltooling/ml-workspace:0.8.7 = ml-workspace:0.8.7" would match
+            config_image = self.image.split("/")[-1]
+            workspace_image = self.highlevel_docker_client.containers.get(self.container_id).image.tags[0].split("/")[-1]
+
+            return config_image != workspace_image
         except (docker.errors.NotFound, docker.errors.NullResource):
             return False
 
@@ -318,6 +319,18 @@ class MLHubDockerSpawner(DockerSpawner):
             template["servername"] = "-" + template["servername"]
         
         return template
+
+    # get_state and load_state are functions used by Jupyterhub to save and load variables that shall be persisted even if the hub is removed and re-created
+    # Override
+    def get_state(self):
+        state = super(MLHubDockerSpawner, self).get_state()
+        state = utils.get_state(self, state)
+        return state
+    
+    # Override
+    def load_state(self, state):
+        super(MLHubDockerSpawner, self).load_state(state)
+        utils.load_state(self, state)
 
     def get_gpu_info(self) -> list:
         count_gpu = 0

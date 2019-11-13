@@ -49,7 +49,6 @@
         {%- if spawner.name -%}
         /{{ spawner.name }}
         {%- endif -%}
-        <span>  {{ spawner.get_container_metadata() if spawner.get_container_metadata is defined }} {# comment {{ current_user.spawner_class().get_days_to_live() }} #}</span>
       </td>
 
       <td class="admin-col col-sm-2">
@@ -85,6 +84,13 @@
         {%- if admin_access %}
         <a role="button" class="ssh-server btn btn-xs btn-primary{% if not spawner.active %} hidden{% endif %}">
         ssh access
+        </a>
+        {%- endif %}
+      </td>
+      <td class="ssh-col col-sm-1 text-center">
+        {%- if admin_access %}
+        <a role="button" class="info-server btn btn-xs btn-primary" onclick="showWorkspaceInfo(this, '{{ spawner.get_workspace_config() if spawner.get_workspace_config is defined }}')">
+        info
         </a>
         {%- endif %}
       </td>
@@ -141,10 +147,9 @@
 {% endcall %}
 
 {# CUSTOM STUFF #}
-{% call modal('SSH Setup', btn_label="Copy to Clipboard", btn_class='btn-primary copy-clipboard-button') %}
-  Execute this command to setup the SSH connection to server <span class="server-name"></span>: 
-  <textarea class="ssh-setup-command" readonly="true" style="width: 100%; padding: 4px; overflow-wrap: normal;"></textarea>
-{% endcall %}
+
+
+{# END CUSTOM STUFF #}
 
 {% macro user_modal(name, multi=False) %}
 {% call modal(name, btn_class='btn-primary save-button') %}
@@ -175,35 +180,11 @@
 {% block script %}
 {{ super() }}
 <script type="text/javascript">
-require(["admin"]);
-
-$(".ssh-server").click(function() {
-    let el = $(this);
-    let row = el.parent().parent();
-    let user = row.data("user");
-    let serverName = row.data("server-name");
-    if (serverName && serverName !== '') {
-        serverName = "/" + serverName; // do it like this, otherwise there is one slash too much in the url if the serverName is empty
-    }
-    let dialog = $("#ssh-setup-dialog");
-    dialog.find(".server-name").text(user + serverName);
-    let setupCommandTextField = dialog.find(".ssh-setup-command");
-    dialog.find('.copy-clipboard-button').click(() => {setupCommandTextField.select(); window.document.execCommand('copy');})
-    fetch("{{ prefix }}user/" + user + serverName + "/tooling/ssh/setup-command?origin=" + window.location.origin)
-        .then(res => {
-            // If the admin is not authorized to access the workspace, the request is redirected and the flag is set to true
-            if (res.status === 302 || res.redirected === true) {
-                return "You are not authorized. Try to access the server first and authorize. If needed, go to the workspace and click on 'Open Tools - SSH Access'."
-            }
-            else if (!res.ok) {
-                return "Unfortunately some error occurred.";
-            }
-
-            return res.text();
-        })
-        .then(res =>  setupCommandTextField.text(res));
-    dialog.modal();
-  });
-
+  require(["admin"]);
 </script>
+
+{% include 'ssh-dialog-snippet.html' %}
+
+{% include 'info-dialog-snippet.html' %}
+
 {% endblock %}

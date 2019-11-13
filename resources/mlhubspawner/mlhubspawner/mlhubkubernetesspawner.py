@@ -17,6 +17,8 @@ import time
 import re
 
 from mlhubspawner import spawner_options, utils
+
+LABEL_POD_NAME = "pod_name"
 class MLHubKubernetesSpawner(KubeSpawner):
     """Provides the possibility to spawn docker containers with specific options, such as resource limits (CPU and Memory), Environment Variables, ..."""
 
@@ -30,8 +32,9 @@ class MLHubKubernetesSpawner(KubeSpawner):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.hub_name = os.getenv("HUB_NAME", "mlhub")
-        self.default_label = {"origin": self.hub_name}   
+        self.hub_name = utils.ENV_HUB_NAME
+        self.default_label = {utils.LABEL_MLHUB_ORIGIN: self.hub_name, utils.LABEL_MLHUB_USER: self.user.name, utils.LABEL_MLHUB_SERVER_NAME: self.name, LABEL_POD_NAME: self.pod_name}
+        self.extra_labels.update(self.default_label)
     
     @default('options_form')
     def _options_form(self):
@@ -67,6 +70,9 @@ class MLHubKubernetesSpawner(KubeSpawner):
     @gen.coroutine
     def start(self):
         """Set custom configuration during start before calling the super.start method of Dockerspawner"""
+
+        self.saved_user_options = self.user_options
+
         if self.user_options.get('image'):
             self.image = self.user_options.get('image')
 
@@ -87,8 +93,7 @@ class MLHubKubernetesSpawner(KubeSpawner):
         #    self.volumes = {'jhub-user-{username}{servername}': "/workspace"}
 
         # set default label 'origin' to know for sure which containers where started via the hub
-        self.extra_labels['origin'] = self.hub_name
-        self.extra_labels['pod_name'] = self.pod_name
+        #self.extra_labels['pod_name'] = self.pod_name
         if self.user_options.get('days_to_live'):
             days_to_live_in_seconds = int(self.user_options.get('days_to_live')) * 24 * 60 * 60 # days * hours_per_day * minutes_per_hour * seconds_per_minute
             expiration_timestamp = time.time() + days_to_live_in_seconds
@@ -109,8 +114,8 @@ class MLHubKubernetesSpawner(KubeSpawner):
                 type='ClusterIP',
                 ports=[V1ServicePort(port=self.port, target_port=self.port)],
                 selector={
-                    'origin': self.extra_labels['origin'], 
-                    'pod_name': self.extra_labels['pod_name']
+                    utils.LABEL_MLHUB_ORIGIN: self.extra_labels[utils.LABEL_MLHUB_ORIGIN], 
+                    LABEL_POD_NAME: self.extra_labels[LABEL_POD_NAME]
                 }
             ),
             metadata = V1ObjectMeta(
@@ -153,8 +158,8 @@ class MLHubKubernetesSpawner(KubeSpawner):
 
         return utils.get_container_metadata(self)
 
-    def get_lifetime_timestamp(self, labels: dict) -> float:
-        return float(labels.get(utils.LABEL_EXPIRATION_TIMESTAMP, '0'))
+    def get_workspace_config(self) -> str:
+        return utils.get_workspace_config(self)
 
     def get_labels(self) -> dict:
         try:
@@ -171,3 +176,15 @@ class MLHubKubernetesSpawner(KubeSpawner):
             if e.status != 404:
                 raise
             self.log.warn("Could not delete %s/%s: does not exist", kind, safe_name)
+
+    # get_state and load_state are functions used by Jupyterhub to save and load variables that shall be persisted even if the hub is removed and re-created
+    # Override
+    def get_state(self):
+        state = super(MLHubKubernetesSpawner, self).get_state()
+        state = utils.get_state(self, state)
+        return state
+    
+    # Override
+    def load_state(self, state):
+        super(MLHubKubernetesSpawner, self).load_state(state)
+        utils.load_state(self, state)
