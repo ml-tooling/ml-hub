@@ -15,6 +15,7 @@ import json
 LABEL_NVIDIA_VISIBLE_DEVICES = 'nvidia_visible_devices'
 LABEL_EXPIRATION_TIMESTAMP = 'expiration_timestamp_seconds'
 
+LABEL_MLHUB_ORIGIN = "mlhub.origin"
 LABEL_MLHUB_USER = "mlhub.user"
 LABEL_MLHUB_SERVER_NAME = "mlhub.server_name"
 
@@ -23,7 +24,6 @@ EXECUTION_MODE_LOCAL = "local"
 EXECUTION_MODE_KUBERNETES = "k8s"
 ENV_NAME_CLEANUP_INTERVAL_SECONDS = "CLEANUP_INTERVAL_SECONDS"
 
-LABEL_MLHUB_ORIGIN = "mlhub.origin"
 ENV_HUB_NAME = os.getenv("HUB_NAME", "mlhub")
 
 def get_lifetime_timestamp(labels: dict) -> float:
