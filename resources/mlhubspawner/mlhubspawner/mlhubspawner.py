@@ -184,6 +184,9 @@ class MLHubDockerSpawner(DockerSpawner):
         else:
             extra_create_kwargs['labels'][utils.LABEL_EXPIRATION_TIMESTAMP] = str(0)
 
+        if self.user_options.get('shm_size'):
+            extra_host_config['shm_size'] = self.user_options.get('shm_size')
+
         if self.user_options.get('gpus'):
             extra_host_config['runtime'] = "nvidia"
             extra_create_kwargs['labels'][utils.LABEL_NVIDIA_VISIBLE_DEVICES] = self.user_options.get('gpus')

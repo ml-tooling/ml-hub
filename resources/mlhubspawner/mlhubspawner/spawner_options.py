@@ -94,11 +94,9 @@ def get_options_form_docker(spawner):
         "additional_cpu_info": "Host has {cpu_count} CPUs".format(cpu_count=spawner.resource_information['cpu_count']),
         "additional_memory_info": "Host has {memory_count_in_gb}GB memory".format(memory_count_in_gb=spawner.resource_information['memory_count_in_gb']),
         "additional_gpu_info": "<div>Host has {gpu_count} GPUs</div><div>{description_gpus}</div>".format(gpu_count=spawner.resource_information['gpu_count'], description_gpus=description_gpus)
-    
     }
     options_form = get_options_form(spawner, **additional_info)
     
-
     # When GPus shall be used, change the default image to the default gpu image (if the user entered a different image, it is not changed), and show an info box
     # reminding the user of inserting a GPU-leveraging docker image
     show_gpu_info_box = "$('#gpu-info-box').css('display', 'block');"
@@ -113,8 +111,14 @@ def get_options_form_docker(spawner):
     if spawner.resource_information['gpu_count'] < 1:
         gpu_disabled = "disabled"
 
+    additional_shm_size_info = "This will override the default shm_size value. Check the <a href='https://docs.docker.com/compose/compose-file/#shm_size'>documentation</a> for more info."
     options_form_docker = \
     """
+    <div style="{div_style}">
+        <label style="{label_style}" for="shm_size">Shared Memory Size {optional_label}</label>
+        <input style="{input_style}" name="shm_size" placeholder="default is {default_shm_size}"></input>
+        <div style="{additional_info_style}">{additional_shm_size_info}</div>
+    </div>
     <div style="{div_style}">
         <input style="margin-right: 8px;" type="checkbox" name="is_mount_volume" checked></input>
         <label style="font-weight: 400;" for="is_mount_volume">Mount named volume to /workspace?</label>
@@ -131,6 +135,8 @@ def get_options_form_docker(spawner):
         input_style=input_style,
         additional_info_style=additional_info_style,
         optional_label=optional_label,
+        default_shm_size=spawner.extra_host_config["shm_size"] if "shm_size" in spawner.extra_host_config else "0m",
+        additional_shm_size_info=additional_shm_size_info,
         gpu_input_listener=gpu_input_listener,
         gpu_disabled=gpu_disabled,
         description_gpus=description_gpus,
@@ -162,6 +168,7 @@ def options_from_form(spawner, formdata):
             env[key.strip()] = value.strip()
     options['env'] = env
 
+    options['shm_size'] = formdata.get('shm_size', [None])[0]
     options['gpus'] = formdata.get('gpus', [None])[0]
 
     return options
