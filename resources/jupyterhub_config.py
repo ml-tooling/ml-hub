@@ -95,7 +95,6 @@ c.Spawner.notebook_dir = '/workspace'
 
 # Connect containers to this Docker network
 c.Spawner.use_internal_ip = True
-c.Spawner.extra_host_config = { 'shm_size': '256m' }
 
 c.Spawner.prefix = 'ws' 
 c.Spawner.name_template = c.Spawner.prefix + '-{username}-' + ENV_HUB_NAME + '{servername}' # override in your config when you want to have a different name schema. Also consider changing c.Authenticator.username_pattern and check the environment variables to permit ssh connection
@@ -161,6 +160,9 @@ if ENV_EXECUTION_MODE == utils.EXECUTION_MODE_KUBERNETES:
     
 
 elif ENV_EXECUTION_MODE == utils.EXECUTION_MODE_LOCAL:
+    # shm_size can only be set for Docker, not Kubernetes (see https://stackoverflow.com/questions/43373463/how-to-increase-shm-size-of-a-kubernetes-container-shm-size-equivalent-of-doc)
+    c.Spawner.extra_host_config = { 'shm_size': '256m' }
+
     client_kwargs = {**get_or_init(c.DockerSpawner.client_kwargs, dict), **get_or_init(c.MLHubDockerSpawner.client_kwargs, dict)}
     tls_config = {**get_or_init(c.DockerSpawner.tls_config, dict), **get_or_init(c.MLHubDockerSpawner.tls_config, dict)}
 

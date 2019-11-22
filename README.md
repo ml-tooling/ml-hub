@@ -166,6 +166,8 @@ We override [DockerSpawner](https://github.com/ml-tooling/ml-hub/blob/master/res
 
 - Create / delete services for a workspace, so that the hub can access them via Kubernetes DNS.
 
+All resources created by our custom spawners are labeled (Docker / Kubernetes labels) with the labels `mlhub.origin` set to the Hub name `$ENV_HUB_NAME`, `mlhub.user` set to the JupyterHub user the resources belongs to, and `mlhub.server_name` to the named server name. For example, if the hub name is "mlhub" and a user named "foo" has a named server "bar", the labels would be `mlhub.origin=mlhub`, `mlhub.user=foo`, `mlhub.server_name=bar`.
+
 ## Support
 
 The ML Hub project is maintained by [@raethlein](https://twitter.com/raethlein) and [@LukasMasuch](https://twitter.com/LukasMasuch). Please understand that we won't be able
@@ -225,6 +227,10 @@ The service has two endpoints which can be reached under the Hub service url `/s
 - `GET /services/cleanup-service/users`: This endpoint is currently doing anything only in Docker-local mode. There, it will check for resources of deleted users, so users who are not in the JupyterHub database anymore, and delete them. This includes containers, networks, and volumes. This is done by looking for labeled Docker resources that point to containers started by hub and belonging to the specific users.
 
 - `GET /services/cleanup-service/expired`: When starting a named workspace, an expiration date can be assigned to it. This endpoint will delete all containers that are expired. The respective named server is deleted from the JupyterHub database and also the Docker/Kubernetes resource is deleted.
+
+## Customization
+
+- Logo: if you want to have your own logo in the corner, place it at `/usr/local/share/jupyterhub/static/images/jupyter.png` inside the hub container.
 
 ## Contribution
 
