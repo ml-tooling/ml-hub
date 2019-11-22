@@ -132,7 +132,11 @@ Here are the additional environment variables for the hub:
 
 ##### Docker-local
 
-Jupyterhub itself is configured via a `config.py` file. In case of MLHub, a default config file is stored under `/resources/jupyterhub_config.py`. If you want to override settings or set extra ones, you can put another config file under `/resources/jupyterhub_user_config.py`. Following settings should probably not be overriden:
+Jupyterhub itself is configured via a `config.py` file. In case of MLHub, a default config file is stored under `/resources/jupyterhub_config.py`. If you want to override settings or set extra ones, you can put another config file under `/resources/jupyterhub_user_config.py`.
+Following settings are additional to standard JupyterHub:
+-  `c.Spawner.workspace_images` - set the images that appear in the dropdown menu when a new named server should be created, e.g. `c.Spawner.workspace_images = [c.Spawner.image, "mltooling/ml-workspace-gpu:0.8.7", "mltooling/ml-workspace-r:0.8.7"]`
+
+Following settings should probably not be overriden:
 - `c.Spawner.environment` - we set default variables there. Instead of overriding it, you can add extra variables to the existing dict, e.g. via `c.Spawner.environment["myvar"] = "myvalue"`.
 - `c.DockerSpawner.prefix` and `c.DockerSpawner.name_template` - if you change those, check whether your SSH environment variables permit those names a target. Also, think about setting `c.Authenticator.username_pattern` to prevent a user having a username that is also a valid container name.
 - If you override ip and port connection settings, make sure to use Docker images that can handle those.
