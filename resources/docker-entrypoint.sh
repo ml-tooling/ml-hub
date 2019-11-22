@@ -25,7 +25,11 @@ fi
 $_RESOURCES_PATH/scripts/setup_certs.sh
 
 function start_ssh {
+    """See the documentation of the ssh-proxy image 
+    - the image this hub image is based on - for more information"""
+
     echo "Start SSH Daemon service"
+    export SSH_TARGET_LABELS="mlhub.origin=$HUB_NAME"
     # Run ssh-bastion image entrypoint
     nohup python $_RESOURCES_PATH/start_ssh.py &
 }
