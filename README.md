@@ -98,6 +98,13 @@ Here are the additional environment variables for the hub:
         <td>3600</td>
     </tr>
     <tr>
+        <td>DYNAMIC_WHITELIST_ENABLED</td>
+        <td>
+            Enables each Authenticator to use a file as a whitelist of usernames. The file must contain one whitelisted username per line and must be mounted to /resources/dynamic_whitelist.txt. The file can be dynamically modified. Keep in mind that already logged in users stay authenticated even if removed from the list - they just cannot login again.
+        </td>
+        <td>false</td>
+    </tr>
+    <tr>
         <td>SSL_ENABLED</td>
         <td>Enable SSL. If you don't provide an ssl certificate as described in <a href="https://github.com/ml-tooling/ml-hub#enable-sslhttps">Section "Enable SSL/HTTPS"</a>, certificates will be generated automatically. As this auto-generated certificate is not signed, you have to trust it in the browser. Without ssl enabled, ssh access won't work as the container uses a single port and has to tell https and ssh traffic apart.</td>
         <td>false</td>

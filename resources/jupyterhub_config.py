@@ -40,6 +40,21 @@ def custom_normalize_username(self, username):
     return username
 Authenticator.normalize_username = custom_normalize_username
 
+original_check_whitelist = Authenticator.check_whitelist
+def dynamic_check_whitelist(self, username, authentication=None):
+    dynamic_whitelist_file = "/resources/dynamic_whitelist.txt"
+
+    if os.getenv("DYNAMIC_WHITELIST_ENABLED", "false") == "true":
+        if not os.path.exists(dynamic_whitelist_file):
+            print("The dynamic white list has to be mounted to '{}'. Use standard JupyterHub whitelist behavior.".format(dynamic_whitelist_file))
+        else:  
+            with open(dynamic_whitelist_file, "r") as f:
+                whitelisted_users = f.readlines()
+                return username.lower() in whitelisted_users
+    
+    return original_check_whitelist(self, username, authentication)
+Authenticator.check_whitelist = dynamic_check_whitelist
+
 ### Helper Functions ###
 
 def get_or_init(config: object, config_type: type) -> object:
