@@ -1,4 +1,4 @@
-FROM mltooling/ssh-proxy:0.1.10
+FROM mltooling/ssh-proxy:0.1.11
 
 WORKDIR /
 
@@ -159,7 +159,8 @@ ENV \
    START_CHP=false \
    EXECUTION_MODE="local" \
    HUB_NAME="mlhub" \ 
-   CLEANUP_INTERVAL_SECONDS=3600
+   CLEANUP_INTERVAL_SECONDS=3600 \
+   DYNAMIC_WHITELIST_ENABLED="false"
 
 ### END CONFIGURATION ###
 

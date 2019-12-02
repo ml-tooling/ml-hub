@@ -11,6 +11,9 @@ import docker.errors
 
 import json
 
+from traitlets.log import get_logger
+logger = get_logger()
+
 from mlhubspawner import utils
 from subprocess import call
 
@@ -39,6 +42,21 @@ def custom_normalize_username(self, username):
 
     return username
 Authenticator.normalize_username = custom_normalize_username
+
+original_check_whitelist = Authenticator.check_whitelist
+def dynamic_check_whitelist(self, username, authentication=None):
+    dynamic_whitelist_file = "/resources/dynamic_whitelist.txt"
+
+    if os.getenv("DYNAMIC_WHITELIST_ENABLED", "false") == "true":
+        if not os.path.exists(dynamic_whitelist_file):
+            logger.error("The dynamic white list has to be mounted to '{}'. Use standard JupyterHub whitelist behavior.".format(dynamic_whitelist_file))
+        else:  
+            with open(dynamic_whitelist_file, "r") as f:
+                whitelisted_users = f.readlines()
+                return username.lower() in whitelisted_users
+    
+    return original_check_whitelist(self, username, authentication)
+Authenticator.check_whitelist = dynamic_check_whitelist
 
 ### Helper Functions ###
 
@@ -169,11 +187,10 @@ elif ENV_EXECUTION_MODE == utils.EXECUTION_MODE_LOCAL:
     docker_client = utils.init_docker_client(client_kwargs, tls_config)
     try:
         container = docker_client.containers.list(filters={"id": socket.gethostname()})[0]
-
         if container.name.lower() != ENV_HUB_NAME.lower():
             container.rename(ENV_HUB_NAME.lower())
     except docker.errors.APIError as e:
-        print("Could not correctly start MLHub container. " + str(e))
+        logger.error("Could not correctly start MLHub container. " + str(e))
         os.kill(os.getpid(), signal.SIGTERM)
 
     # For cleanup-service

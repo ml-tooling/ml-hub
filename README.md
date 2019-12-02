@@ -98,6 +98,13 @@ Here are the additional environment variables for the hub:
         <td>3600</td>
     </tr>
     <tr>
+        <td>DYNAMIC_WHITELIST_ENABLED</td>
+        <td>
+            Enables each Authenticator to use a file as a whitelist of usernames. The file must contain one whitelisted username per line and must be mounted to /resources/dynamic_whitelist.txt. The file can be dynamically modified. Keep in mind that already logged in users stay authenticated even if removed from the list - they just cannot login again.
+        </td>
+        <td>false</td>
+    </tr>
+    <tr>
         <td>SSL_ENABLED</td>
         <td>Enable SSL. If you don't provide an ssl certificate as described in <a href="https://github.com/ml-tooling/ml-hub#enable-sslhttps">Section "Enable SSL/HTTPS"</a>, certificates will be generated automatically. As this auto-generated certificate is not signed, you have to trust it in the browser. Without ssl enabled, ssh access won't work as the container uses a single port and has to tell https and ssh traffic apart.</td>
         <td>false</td>
@@ -132,7 +139,11 @@ Here are the additional environment variables for the hub:
 
 ##### Docker-local
 
-Jupyterhub itself is configured via a `config.py` file. In case of MLHub, a default config file is stored under `/resources/jupyterhub_config.py`. If you want to override settings or set extra ones, you can put another config file under `/resources/jupyterhub_user_config.py`. Following settings should probably not be overriden:
+Jupyterhub itself is configured via a `config.py` file. In case of MLHub, a default config file is stored under `/resources/jupyterhub_config.py`. If you want to override settings or set extra ones, you can put another config file under `/resources/jupyterhub_user_config.py`.
+Following settings are additional to standard JupyterHub:
+-  `c.Spawner.workspace_images` - set the images that appear in the dropdown menu when a new named server should be created, e.g. `c.Spawner.workspace_images = [c.Spawner.image, "mltooling/ml-workspace-gpu:0.8.7", "mltooling/ml-workspace-r:0.8.7"]`
+
+Following settings should probably not be overriden:
 - `c.Spawner.environment` - we set default variables there. Instead of overriding it, you can add extra variables to the existing dict, e.g. via `c.Spawner.environment["myvar"] = "myvalue"`.
 - `c.DockerSpawner.prefix` and `c.DockerSpawner.name_template` - if you change those, check whether your SSH environment variables permit those names a target. Also, think about setting `c.Authenticator.username_pattern` to prevent a user having a username that is also a valid container name.
 - If you override ip and port connection settings, make sure to use Docker images that can handle those.

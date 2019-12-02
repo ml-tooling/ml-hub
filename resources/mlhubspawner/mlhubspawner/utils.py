@@ -26,6 +26,17 @@ ENV_NAME_CLEANUP_INTERVAL_SECONDS = "CLEANUP_INTERVAL_SECONDS"
 
 ENV_HUB_NAME = os.getenv("HUB_NAME", "mlhub")
 
+OPTION_LABELS = "labels"
+OPTION_DAYS_TO_LIVE = "days_to_live"
+OPTION_NANO_CPUS = "nano_cpus"
+OPTION_CPU_LIMIT = "cpu_limit"
+OPTION_MEM_LIMIT = "mem_limit"
+OPTION_IMAGE = "image"
+OPTION_SHM_SIZE = "shm_size"
+OPTION_SSH_JUMPHOST_TARGET = "SSH_JUMPHOST_TARGET"
+OPTION_MAX_NUM_THREADS = "MAX_NUM_THREADS"
+
+
 def get_lifetime_timestamp(labels: dict) -> float:
     return float(labels.get(LABEL_EXPIRATION_TIMESTAMP, '0'))
 

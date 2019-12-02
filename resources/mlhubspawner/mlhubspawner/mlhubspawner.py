@@ -30,6 +30,8 @@ INITIAL_CIDR_FIRST_OCTET = 172
 INITIAL_CIDR_SECOND_OCTET = 33
 INITIAL_CIDR = "{}.33.0.0/24".format(INITIAL_CIDR_FIRST_OCTET)
 
+OPTION_SHM_SIZE = "shm_size"
+
 def has_complete_network_information(network):
     """Convenient function to check whether the docker.Network object has all required properties.
     
@@ -134,10 +136,10 @@ class MLHubDockerSpawner(DockerSpawner):
         if self.user_options.get('gpus'):
             env['NVIDIA_VISIBLE_DEVICES'] = self.user_options.get('gpus')
 
-        if self.user_options.get('cpu_limit'):
-            env["MAX_NUM_THREADS"] = self.user_options.get('cpu_limit')
+        if self.user_options.get(utils.OPTION_CPU_LIMIT):
+            env[utils.OPTION_MAX_NUM_THREADS] = self.user_options.get(utils.OPTION_CPU_LIMIT)
 
-        env['SSH_JUMPHOST_TARGET'] = self.object_name
+        env[utils.OPTION_SSH_JUMPHOST_TARGET] = self.object_name
 
         return env
 
@@ -151,22 +153,22 @@ class MLHubDockerSpawner(DockerSpawner):
 
         self.saved_user_options = self.user_options
 
-        if self.user_options.get('image'):
-            self.image = self.user_options.get('image')
+        if self.user_options.get(utils.OPTION_IMAGE):
+            self.image = self.user_options.get(utils.OPTION_IMAGE)
 
         extra_host_config = {}
-        if self.user_options.get('cpu_limit'):
+        if self.user_options.get(utils.OPTION_CPU_LIMIT):
             # nano_cpus cannot be bigger than the number of CPUs of the machine (this method would currently not work in a cluster, as machines could be different than the machine where the runtime-manager and this code run.
             max_available_cpus = self.resource_information["cpu_count"]
             limited_cpus = min(
-                int(self.user_options.get('cpu_limit')), max_available_cpus)
+                int(self.user_options.get(utils.OPTION_CPU_LIMIT)), max_available_cpus)
 
             # the nano_cpu parameter of the Docker client expects an integer, not a float
             nano_cpus = int(limited_cpus * 1e9)
             extra_host_config['nano_cpus'] = nano_cpus
-        if self.user_options.get('mem_limit'):
-            extra_host_config['mem_limit'] = str(self.user_options.get(
-                'mem_limit')) + "gb"
+        if self.user_options.get(utils.OPTION_MEM_LIMIT):
+            extra_host_config[utils.OPTION_MEM_LIMIT] = str(self.user_options.get(
+                utils.OPTION_MEM_LIMIT)) + "gb"
 
         if self.user_options.get('is_mount_volume') == 'on':
             # {username} and {servername} will be automatically replaced by DockerSpawner with the right values as in template_namespace
@@ -176,20 +178,20 @@ class MLHubDockerSpawner(DockerSpawner):
 
         extra_create_kwargs = {}
         # set default label 'origin' to know for sure which containers where started via the hub
-        extra_create_kwargs['labels'] = self.default_labels
-        if self.user_options.get('days_to_live'):
-            days_to_live_in_seconds = int(self.user_options.get('days_to_live')) * 24 * 60 * 60 # days * hours_per_day * minutes_per_hour * seconds_per_minute
+        extra_create_kwargs[utils.OPTION_LABELS] = self.default_labels
+        if self.user_options.get(utils.OPTION_DAYS_TO_LIVE):
+            days_to_live_in_seconds = int(self.user_options.get(utils.OPTION_DAYS_TO_LIVE)) * 24 * 60 * 60 # days * hours_per_day * minutes_per_hour * seconds_per_minute
             expiration_timestamp = time.time() + days_to_live_in_seconds
-            extra_create_kwargs['labels'][utils.LABEL_EXPIRATION_TIMESTAMP] =  str(expiration_timestamp)
+            extra_create_kwargs[utils.OPTION_LABELS][utils.LABEL_EXPIRATION_TIMESTAMP] =  str(expiration_timestamp)
         else:
-            extra_create_kwargs['labels'][utils.LABEL_EXPIRATION_TIMESTAMP] = str(0)
+            extra_create_kwargs[utils.OPTION_LABELS][utils.LABEL_EXPIRATION_TIMESTAMP] = str(0)
 
-        if self.user_options.get('shm_size'):
-            extra_host_config['shm_size'] = self.user_options.get('shm_size')
+        if self.user_options.get(OPTION_SHM_SIZE):
+            extra_host_config[OPTION_SHM_SIZE] = self.user_options.get('shm_size')
 
         if self.user_options.get('gpus'):
             extra_host_config['runtime'] = "nvidia"
-            extra_create_kwargs['labels'][utils.LABEL_NVIDIA_VISIBLE_DEVICES] = self.user_options.get('gpus')
+            extra_create_kwargs[utils.OPTION_LABELS][utils.LABEL_NVIDIA_VISIBLE_DEVICES] = self.user_options.get('gpus')
 
         self.extra_host_config.update(extra_host_config)
         self.extra_create_kwargs.update(extra_create_kwargs)
