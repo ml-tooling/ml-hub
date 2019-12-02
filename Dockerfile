@@ -1,4 +1,4 @@
-FROM mltooling/ssh-proxy:0.1.10
+FROM mltooling/ssh-proxy:0.1.11
 
 WORKDIR /
 
