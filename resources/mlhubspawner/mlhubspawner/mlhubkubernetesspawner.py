@@ -60,10 +60,10 @@ class MLHubKubernetesSpawner(KubeSpawner):
         #if self.user_options.get('gpus'):
         #    env['NVIDIA_VISIBLE_DEVICES'] = self.user_options.get('gpus')
 
-        if self.user_options.get('cpu_limit'):
-            env["MAX_NUM_THREADS"] = self.user_options.get('cpu_limit')
+        if self.user_options.get(utils.OPTION_CPU_LIMIT):
+            env[utils.OPTION_MAX_NUM_THREADS] = self.user_options.get(utils.OPTION_CPU_LIMIT)
 
-        env['SSH_JUMPHOST_TARGET'] = self.pod_name
+        env[utils.OPTION_SSH_JUMPHOST_TARGET] = self.pod_name
 
         return env
 
@@ -73,19 +73,19 @@ class MLHubKubernetesSpawner(KubeSpawner):
 
         self.saved_user_options = self.user_options
 
-        if self.user_options.get('image'):
-            self.image = self.user_options.get('image')
+        if self.user_options.get(utils.OPTION_IMAGE):
+            self.image = self.user_options.get(utils.OPTION_IMAGE)
 
         # Set request explicitly to 0, otherwise Kubernetes will set it to the same amount as limit
         # self.cpu_guarantee / self.mem_guarantee cannot be directly used, as they are of type ByteSpecification and, for example, 0G will be transformed to 0 which will not pass
         # the 'if cpu_guarantee' check (see https://github.com/jupyterhub/kubespawner/blob/8a6d66e04768565c0fc56c790a5fc42bfee634ec/kubespawner/objects.py#L279).
         # Hence, set it via extra_resource_guarantees.
         self.extra_resource_guarantees = {"cpu": 0, "memory": "0G"}
-        if self.user_options.get('cpu_limit'):
-            self.cpu_limit = float(self.user_options.get('cpu_limit'))
+        if self.user_options.get(utils.OPTION_CPU_LIMIT):
+            self.cpu_limit = float(self.user_options.get(utils.OPTION_CPU_LIMIT))
 
-        if self.user_options.get('mem_limit'):
-            memory = str(self.user_options.get('mem_limit')) + "G"
+        if self.user_options.get(utils.OPTION_MEM_LIMIT):
+            memory = str(self.user_options.get(utils.OPTION_MEM_LIMIT)) + "G"
             self.mem_limit = memory.upper().replace("GB", "G").replace("KB", "K").replace("MB", "M").replace("TB", "T")
 
         #if self.user_options.get('is_mount_volume') == 'on':
@@ -94,8 +94,8 @@ class MLHubKubernetesSpawner(KubeSpawner):
 
         # set default label 'origin' to know for sure which containers where started via the hub
         #self.extra_labels['pod_name'] = self.pod_name
-        if self.user_options.get('days_to_live'):
-            days_to_live_in_seconds = int(self.user_options.get('days_to_live')) * 24 * 60 * 60 # days * hours_per_day * minutes_per_hour * seconds_per_minute
+        if self.user_options.get(utils.OPTION_DAYS_TO_LIVE):
+            days_to_live_in_seconds = int(self.user_options.get(utils.OPTION_DAYS_TO_LIVE)) * 24 * 60 * 60 # days * hours_per_day * minutes_per_hour * seconds_per_minute
             expiration_timestamp = time.time() + days_to_live_in_seconds
             self.extra_labels[utils.LABEL_EXPIRATION_TIMESTAMP] =  str(expiration_timestamp)
         else:
@@ -151,12 +151,6 @@ class MLHubKubernetesSpawner(KubeSpawner):
         except:
             self.log.warn("Could not delete service with name {}".format(self.pod_name))
 
-    
-    def get_container_metadata(self) -> str:
-        if self.pod_name is None or self.pod_name == '':
-            return ""
-
-        return utils.get_container_metadata(self)
 
     def get_workspace_config(self) -> str:
         return utils.get_workspace_config(self)
