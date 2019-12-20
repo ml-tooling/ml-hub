@@ -28,7 +28,7 @@ original_normalize_username = Authenticator.normalize_username
 def custom_normalize_username(self, username):
     username = original_normalize_username(self, username)
     more_than_one_forbidden_char = False
-    for forbidden_username_char in [" ", ",", ";", ".", "-", "@"]:
+    for forbidden_username_char in [" ", ",", ";", ".", "-", "@", "_"]:
         # Replace special characters with a non-special character. Cannot just be empty, like "", because then it could happen that two distinct user names are transformed into the same username.
         # Example: "foo, bar" and "fo, obar" would both become "foobar".
         replace_char = "0"
