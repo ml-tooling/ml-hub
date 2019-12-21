@@ -100,7 +100,7 @@ Here are the additional environment variables for the hub:
     <tr>
         <td>DYNAMIC_WHITELIST_ENABLED</td>
         <td>
-            Enables each Authenticator to use a file as a whitelist of usernames. The file must contain one whitelisted username per line and must be mounted to /resources/dynamic_whitelist.txt. The file can be dynamically modified. Keep in mind that already logged in users stay authenticated even if removed from the list - they just cannot login again.
+            Enables each Authenticator to use a file as a whitelist of usernames. The file must contain one whitelisted username per line and must be mounted to /resources/users/dynamic_whitelist.txt. The file can be dynamically modified. Keep in mind that already logged in users stay authenticated even if removed from the list - they just cannot login again.
         </td>
         <td>false</td>
     </tr>

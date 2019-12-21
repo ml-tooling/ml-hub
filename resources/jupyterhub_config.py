@@ -45,9 +45,10 @@ Authenticator.normalize_username = custom_normalize_username
 
 original_check_whitelist = Authenticator.check_whitelist
 def dynamic_check_whitelist(self, username, authentication=None):
-    dynamic_whitelist_file = "/resources/dynamic_whitelist.txt"
+    dynamic_whitelist_file = "/resources/users/dynamic_whitelist.txt"
 
     if os.getenv("DYNAMIC_WHITELIST_ENABLED", "false") == "true":
+        # TODO: create the file and warn the user that the user has to go into the hub pod and modify it there
         if not os.path.exists(dynamic_whitelist_file):
             logger.error("The dynamic white list has to be mounted to '{}'. Use standard JupyterHub whitelist behavior.".format(dynamic_whitelist_file))
         else:  
@@ -207,12 +208,14 @@ if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
     #     c.JupyterHub.template_paths = []
     c.JupyterHub.template_paths.append("{}/templates/".format(os.path.dirname(nativeauthenticator.__file__)))
 
-c.JupyterHub.services = [
-    {
-        'name': 'cleanup-service',
-        'admin': True,
-        'url': 'http://{}:9000'.format(service_host),
-        'environment': service_environment,
-        'command': [sys.executable, '/resources/cleanup-service.py']
-    }
-]
+# TODO: add env variable to readme
+if (os.getenv("IS_CLEANUP_SERVICE_ENABLED", "true") == "true"):
+    c.JupyterHub.services = [
+        {
+            'name': 'cleanup-service',
+            'admin': True,
+            'url': 'http://{}:9000'.format(service_host),
+            'environment': service_environment,
+            'command': [sys.executable, '/resources/cleanup-service.py']
+        }
+    ]
