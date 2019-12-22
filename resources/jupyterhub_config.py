@@ -53,7 +53,9 @@ def dynamic_check_whitelist(self, username, authentication=None):
             logger.error("The dynamic white list has to be mounted to '{}'. Use standard JupyterHub whitelist behavior.".format(dynamic_whitelist_file))
         else:  
             with open(dynamic_whitelist_file, "r") as f:
-                whitelisted_users = f.readlines()
+                #whitelisted_users = f.readlines()
+                # rstrip() will remove trailing whitespaces or newline characters
+                whitelisted_users = [line.rstrip() for line in f]
                 return username.lower() in whitelisted_users
     
     return original_check_whitelist(self, username, authentication)
