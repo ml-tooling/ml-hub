@@ -126,6 +126,9 @@ RUN apt-get update && apt-get install -y pcregrep && clean-layer.sh
 
 ### CONFIGURATION ###
 
+ARG ARG_HUB_VERSION="unknown"
+ENV HUB_VERSION=$ARG_HUB_VERSION
+
 COPY resources/nginx.conf /etc/nginx/nginx.conf
 COPY resources/scripts $_RESOURCES_PATH/scripts
 COPY resources/docker-entrypoint.sh $_RESOURCES_PATH/docker-entrypoint.sh
@@ -135,6 +138,7 @@ COPY resources/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/tem
 COPY resources/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/admin.html
 COPY resources/jupyterhub-mod/ssh-dialog-snippet.html /usr/local/share/jupyterhub/templates/ssh-dialog-snippet.html
 COPY resources/jupyterhub-mod/info-dialog-snippet.html /usr/local/share/jupyterhub/templates/info-dialog-snippet.html
+COPY resources/jupyterhub-mod/version-number-snippet.html /usr/local/share/jupyterhub/templates/version-number-snippet.html
 COPY resources/jupyterhub-mod/jsonpresenter /usr/local/share/jupyterhub/static/components/jsonpresenter/
 COPY resources/jupyterhub-mod/cleanup-service.py /resources/cleanup-service.py
 
@@ -143,6 +147,10 @@ RUN \
    mkdir $_SSL_RESOURCES_PATH && chmod ug+rwx $_SSL_RESOURCES_PATH && \
    chmod -R ug+rxw $_RESOURCES_PATH/scripts && \
    chmod ug+rwx $_RESOURCES_PATH/docker-entrypoint.sh
+
+RUN \
+   # Replace the variable with the actual value. There seems to be no direct functionality in ninja-templates
+   sed -i "s/\$HUB_VERSION/$HUB_VERSION/g" /usr/local/share/jupyterhub/templates/version-number-snippet.html
 
 # Set python3 to default python. Needed for the ssh-proxy scripts
 RUN \
@@ -169,8 +177,6 @@ ENV \
 
 ARG ARG_BUILD_DATE="unknown"
 ARG ARG_VCS_REF="unknown"
-ARG ARG_HUB_VERSION="unknown"
-ENV HUB_VERSION=$ARG_HUB_VERSION
 
 # Overwrite & add common labels
 LABEL \
