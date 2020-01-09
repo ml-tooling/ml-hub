@@ -145,8 +145,6 @@ c.JupyterHub.authenticator_class = NATIVE_AUTHENTICATOR_CLASS # override in your
 # See https://traitlets.readthedocs.io/en/stable/config.html#configuration-files-inheritance
 load_subconfig("{}/jupyterhub_user_config.py".format(os.getenv("_RESOURCES_PATH")))
 
-
-
 service_environment = {
     ENV_NAME_HUB_NAME: ENV_HUB_NAME,
     utils.ENV_NAME_EXECUTION_MODE: ENV_EXECUTION_MODE,
@@ -161,12 +159,8 @@ if ENV_EXECUTION_MODE == utils.EXECUTION_MODE_KUBERNETES:
     c.JupyterHub.spawner_class = 'mlhubspawner.MLHubKubernetesSpawner'
     c.KubeSpawner.pod_name_template = c.Spawner.name_template
 
-    from z2jh import set_config_if_not_none
-    set_config_if_not_none(c.KubeSpawner, 'workspace_images', 'singleuser.workspaceImages')
-
     c.KubeSpawner.environment = get_or_init(c.KubeSpawner.environment, dict)
-    # if not isinstance(c.KubeSpawner.environment, dict):
-    #     c.KubeSpawner.environment = {}
+
     c.KubeSpawner.environment.update(default_env)
 
     # For cleanup-service
