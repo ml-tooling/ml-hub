@@ -58,7 +58,19 @@ docker run \
 To persist the hub data, such as started workspaces and created users, mount a directory to `/data`.
 Any given name (`--name`) will be overruled by the environment variable `HUB_NAME`.
 
-For Kubernetes deployment, we forked and modified [zero-to-jupyterhub-k8s](https://github.com/jupyterhub/zero-to-jupyterhub-k8s) which you can find [here](https://github.com/ml-tooling/zero-to-mlhub-k8s).
+
+### Start an instance via Kubernetes
+
+Via helm: 
+```bash
+RELEASE=mlhub # change if needed
+NAMESPACE=$RELEASE # change if needed
+helm upgrade --install $RELEASE mlhub-chart-1.0.1.tgz --namespace $NAMESPACE
+```
+
+<!-- TODO: add for "normal" Kubernetes as well -->
+
+<!-- For Kubernetes deployment, we forked and modified [zero-to-jupyterhub-k8s](https://github.com/jupyterhub/zero-to-jupyterhub-k8s) which you can find [here](https://github.com/ml-tooling/zero-to-mlhub-k8s). -->
 
 ### Configuration
 
@@ -137,21 +149,54 @@ Here are the additional environment variables for the hub:
 
 #### Jupyterhub Config
 
-##### Docker-local
-
 Jupyterhub itself is configured via a `config.py` file. In case of MLHub, a default config file is stored under `/resources/jupyterhub_config.py`. If you want to override settings or set extra ones, you can put another config file under `/resources/jupyterhub_user_config.py`.
 Following settings are additional to standard JupyterHub:
 -  `c.Spawner.workspace_images` - set the images that appear in the dropdown menu when a new named server should be created, e.g. `c.Spawner.workspace_images = [c.Spawner.image, "mltooling/ml-workspace-gpu:0.8.7", "mltooling/ml-workspace-r:0.8.7"]`
 
 Following settings should probably not be overriden:
-- `c.Spawner.environment` - we set default variables there. Instead of overriding it, you can add extra variables to the existing dict, e.g. via `c.Spawner.environment["myvar"] = "myvalue"`.
+- `c.Spawner.environment` - we set default variables there. Instead of overriding it, you can add extra variables to the existing dict, e.g. via `c.Spawner.environment["myvar"] = "myvalue"`. <!-- TODO: check validity! -->
 - `c.DockerSpawner.prefix` and `c.DockerSpawner.name_template` - if you change those, check whether your SSH environment variables permit those names a target. Also, think about setting `c.Authenticator.username_pattern` to prevent a user having a username that is also a valid container name.
 - If you override ip and port connection settings, make sure to use Docker images that can handle those.
 
-##### Kubernetes
+An examplary custom config file could look like this:
 
-To make modifications to the config in the Kubernetes setup, checkout the documentation for [Zero to JupyterHub with Kubernetes](https://zero-to-jupyterhub.readthedocs.io/en/latest/reference.html?highlight=service_account#singleuser). Our hub is compatible with their approach and so you can pass a config.yaml to the helm command to set values for the Jupyterhub config. We modified a few default values compared to the original repository.
-[This file](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/jupyterhub/values.yaml) contains the default values for the helm deployment. The passed config is used by [the Jupyterhub config](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/images/hub/jupyterhub_config.py), which we load subsequently to the Jupyterhub config you find in this repo. Hence, the "Zero to JupyterHub with Kubernetes" config overrides the above described default config as it is loaded after our default config file. In short what happens: This repo's hub config is loaded, then the "Zero to JupyterHub with Kubernetes" config, where values can be modified via a config.yaml.
+```python
+# jupyterhub_user_config.py
+c.Spawner.environment = {"FOO": "BAR"}
+c.Spawner.workspace_images = ["mltooling/ml-workspace-r:0.8.7"]
+```
+
+##### Docker-local
+<!-- TODO: Link to the DockerSpawner documentation -->
+In Docker, mount a custom config like `-v /jupyterhub_user_config:/resources/jupyterhub_user_config.py`.
+
+##### Kubernetes
+<!-- TODO: Link to the KubeSpawner documentation -->
+When using Helm, you can pass the configuration to the installation command via `--set-file userConfig=./jupyterhub_user_config.py`. So the complete command could look like `helm upgrade --install mlhub mlhub-chart-1.0.1.tgz --namespace mlhub --values config.yaml --set-file userConfig=./jupyterhub_user_config.py`.
+
+!!! info
+    The Jupyterhub configurations `c.JupyterHub.base_url` and `c.JupyterHub.proxy_auth_token` cannot be set in the `jupyterhub_user_config.py`. Instead, if you want to specify them, you have to do it in the `config.yaml` (see below).
+
+<!-- TODO: Link to Zero to JupyterHub documentation. Mention that only a part of their configuration can be done. -->
+Additionally to the `jupyterhub_user_config.py`, which can be used to configure JupyterHub or the Spawner, you can provide a `config.yaml` where you can make some Kubernetes-deployment specific configurations.
+Additionally, you have to use this yaml file for the settings `c.JupyterHub.base_url` and `c.JupyterHub.proxy_auth_token` as they have to be shared between services and, thus, have to be known during deployment.
+A `config.yaml` where you set those values would look like following:
+
+```yaml
+proxy:
+  secretToken: <32 characters random string base64 encoded>
+
+hub:
+  baseUrl: "/mlhub"
+```
+
+You can pass the file via `--values config.yaml`. The complete command would look like `helm upgrade --install mlhub mlhub-chart-1.0.1.tgz --namespace mlhub --values config.yaml`. The `--set-file userConfig=./jupyterhub_user_config.py` flag can additionally be provided.
+
+
+<!-- To make modifications to the config in the Kubernetes setup, checkout the documentation for [Zero to JupyterHub with Kubernetes](https://zero-to-jupyterhub.readthedocs.io/en/latest/reference.html?highlight=service_account#singleuser). Our hub is compatible with their approach and so you can pass a config.yaml to the helm command to set values for the Jupyterhub config. We modified a few default values compared to the original repository.
+[This file](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/jupyterhub/values.yaml) contains the default values for the helm deployment. The passed config is used by [the Jupyterhub config](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/images/hub/jupyterhub_config.py), which we load subsequently to the Jupyterhub config you find in this repo. Hence, the "Zero to JupyterHub with Kubernetes" config overrides the above described default config as it is loaded after our default config file. In short what happens: This repo's hub config is loaded, then the "Zero to JupyterHub with Kubernetes" config, where values can be modified via a config.yaml. -->
+
+
 
 ### Enable SSL/HTTPS
 
