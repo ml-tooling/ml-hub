@@ -75,6 +75,7 @@ You can find the chart file attached to the [release](https://github.com/ml-tool
 <!-- TODO: add for "normal" Kubernetes as well? -->
 <!-- The problem is with the pre-packaged chart, the proxy.token is constant... 
 Document how to create the secret and remove it from the filled template?
+Also, HTTPS information has to be provided. Create a ConfigMap based on the config.yaml?
 -->
 
 <!-- For Kubernetes deployment, we forked and modified [zero-to-jupyterhub-k8s](https://github.com/jupyterhub/zero-to-jupyterhub-k8s) which you can find [here](https://github.com/ml-tooling/zero-to-mlhub-k8s). -->
@@ -221,6 +222,8 @@ For Kubernetes, add following lines to the `config.yaml` file (based on [setup-m
 
 ```yaml
 proxy:
+  extraEnv:
+    SSL_ENABLED: true
   https:
     hosts:
       - <your-domain-name>
