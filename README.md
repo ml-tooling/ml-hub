@@ -157,15 +157,16 @@ Here are the additional environment variables for the hub:
 
 #### JupyterHub Config
 
-JupyterHub and the used Spawners are configured via a `config.py` file. In case of MLHub, a default config file is stored under `/resources/jupyterhub_config.py`. If you want to override settings or set extra ones, you can put another config file under `/resources/jupyterhub_user_config.py`.
+JupyterHub and the used Spawner are configured via a `config.py` file as stated in the [official documentation](https://jupyterhub.readthedocs.io/en/stable/getting-started/config-basics.html). In case of MLHub, a default config file is stored under `/resources/jupyterhub_config.py`. If you want to override settings or set extra ones, you can put another config file under `/resources/jupyterhub_user_config.py`.
 
-Following settings are additional to standard JupyterHub:
+*Important:* When setting properties for the Spawner, please use the general form `c.Spawner.` instead of `c.DockerSpawner.`, `c.KubeSpawner.` etc. so that they are merged with default values accordingly.
+
+Our custom Spawners support the additional configurations:
 -  `c.Spawner.workspace_images` - set the images that appear in the dropdown menu when a new named server should be created, e.g. `c.Spawner.workspace_images = [c.Spawner.image, "mltooling/ml-workspace-gpu:0.8.7", "mltooling/ml-workspace-r:0.8.7"]`
 
 Following settings should probably not be overriden:
-- `c.Spawner.environment` - we set default variables there. Instead of overriding it, you can add extra variables to the existing dict, e.g. via `c.Spawner.environment["myvar"] = "myvalue"`. <!-- TODO: check validity! -->
-- `c.DockerSpawner.prefix` and `c.DockerSpawner.name_template` - if you change those, check whether your SSH environment variables permit those names a target. Also, think about setting `c.Authenticator.username_pattern` to prevent a user having a username that is also a valid container name.
-- If you override ip and port connection settings, make sure to use Docker images that can handle those.
+- `c.Spawner.prefix` and `c.Spawner.name_template` - if you change those, check whether your SSH environment variables permit those names a target. Also, think about setting `c.Authenticator.username_pattern` to prevent a user having a username that is also a valid container name.
+- If you override ip and port connection settings, make sure to use Docker images and an overall setup that can handle those.
 
 An examplary custom config file could look like this:
 
@@ -243,7 +244,7 @@ proxy:
 
 ### Spawner
 
-We override [DockerSpawner](https://github.com/ml-tooling/ml-hub/blob/master/resources/mlhubspawner/mlhubspawner/mlhubspawner.py) and [KubeSpawner](https://github.com/ml-tooling/ml-hub/blob/master/resources/mlhubspawner/mlhubspawner/mlhubkubernetesspawner.py) for Docker and Kubernetes, respectively. We do so to add convenient labels and environment variables. Further, we return a custom option form to configure the resouces of the workspaces. The overriden Spawners can be configured the same way as the base Spawners as stated in the *Configuration Section*.
+We override [DockerSpawner](https://github.com/ml-tooling/ml-hub/blob/master/resources/mlhubspawner/mlhubspawner/mlhubspawner.py) and [KubeSpawner](https://github.com/ml-tooling/ml-hub/blob/master/resources/mlhubspawner/mlhubspawner/mlhubkubernetesspawner.py) for Docker and Kubernetes, respectively. We do so to add convenient labels and environment variables. Further, we return a custom option form to configure the resouces of the workspaces. The overriden Spawners can be configured the same way as the base Spawners as stated in the [Configuration Section](./#configuration).
 
 #### DockerSpawner
 
@@ -308,7 +309,7 @@ The "Days to live" flag is purely informational currently and can be seen in the
 
 ### Cleanup Service
 
-JupyterHub was originally not created with Docker or Kubernetes in mind, which can result in unfavorable scenarios such as that containers are stopped but not deleted on the host. Furthermore, our custom spawners might create some artifacts that should be cleaned up as well. MLHub contains a cleanup service that is started as a [JupyterHub service](https://jupyterhub.readthedocs.io/en/stable/reference/services.html) inside the hub container. It can be accessed as a REST-API by an admin, but it is also triggered automatically every X timesteps when not disabled (see config for `CLEANUP_INTERVAL_SECONDS`). The service enhances the JupyterHub functionality with regards to the Docker and Kubernetes world. "Containers" is hereby used interchangeably for Docker containers and Kubernetes pods.
+JupyterHub was originally not created with Docker or Kubernetes in mind, which can result in unfavorable scenarios such as that containers are stopped but not deleted on the host. Furthermore, our custom spawners might create some artifacts that should be cleaned up as well. MLHub contains a cleanup service that is started as a [JupyterHub service](https://jupyterhub.readthedocs.io/en/stable/reference/services.html) inside the hub container; both in the Docker and the Kubernetes setup. It can be accessed as a REST-API by an admin, but it is also triggered automatically every X timesteps when not disabled (see config for `CLEANUP_INTERVAL_SECONDS`). The service enhances the JupyterHub functionality with regards to the Docker and Kubernetes world. "Containers" is hereby used interchangeably for Docker containers and Kubernetes pods.
 The service has two endpoints which can be reached under the Hub service url `/services/cleanup-service/*` with admin permissions.
 
 - `GET /services/cleanup-service/users`: This endpoint is currently doing anything only in Docker-local mode. There, it will check for resources of deleted users, so users who are not in the JupyterHub database anymore, and delete them. This includes containers, networks, and volumes. This is done by looking for labeled Docker resources that point to containers started by hub and belonging to the specific users.

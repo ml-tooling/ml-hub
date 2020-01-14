@@ -102,7 +102,6 @@ c.Spawner.port = int(os.getenv("DEFAULT_WORKSPACE_PORT", 8080))
 
 # Set default environment variables used by our ml-workspace container
 default_env = {"AUTHENTICATE_VIA_JUPYTER": "true", "SHUTDOWN_INACTIVE_KERNELS": "true"}
-c.Spawner.environment = default_env
 
 # Workaround to prevent api problems
 #c.Spawner.will_resume = True
@@ -144,6 +143,8 @@ c.JupyterHub.authenticator_class = NATIVE_AUTHENTICATOR_CLASS # override in your
     # > c.DockerSpawner.extra_create_kwargs.update({'labels': {'foo': 'bar'}})
 # See https://traitlets.readthedocs.io/en/stable/config.html#configuration-files-inheritance
 load_subconfig("{}/jupyterhub_user_config.py".format(os.getenv("_RESOURCES_PATH")))
+c.Spawner.environment = get_or_init(c.Spawner.environment, dict)
+c.Spawner.environment.update(default_env)
 
 service_environment = {
     ENV_NAME_HUB_NAME: ENV_HUB_NAME,
@@ -159,9 +160,9 @@ if ENV_EXECUTION_MODE == utils.EXECUTION_MODE_KUBERNETES:
     c.JupyterHub.spawner_class = 'mlhubspawner.MLHubKubernetesSpawner'
     c.KubeSpawner.pod_name_template = c.Spawner.name_template
 
-    c.KubeSpawner.environment = get_or_init(c.KubeSpawner.environment, dict)
-
-    c.KubeSpawner.environment.update(default_env)
+    # Consider the case where the user-config contains c.KubeSpawner.environment instead of c.Spawner.environment
+    # c.KubeSpawner.environment = get_or_init(c.KubeSpawner.environment, dict)
+    # c.Spawner.environment.update(c.KubeSpawner.environment)
 
     # For cleanup-service
     ## Env variables that are used by the Python Kubernetes library to load the incluster config
@@ -178,8 +179,8 @@ elif ENV_EXECUTION_MODE == utils.EXECUTION_MODE_LOCAL:
     # shm_size can only be set for Docker, not Kubernetes (see https://stackoverflow.com/questions/43373463/how-to-increase-shm-size-of-a-kubernetes-container-shm-size-equivalent-of-doc)
     c.Spawner.extra_host_config = { 'shm_size': '256m' }
 
-    client_kwargs = {**get_or_init(c.DockerSpawner.client_kwargs, dict), **get_or_init(c.MLHubDockerSpawner.client_kwargs, dict)}
-    tls_config = {**get_or_init(c.DockerSpawner.tls_config, dict), **get_or_init(c.MLHubDockerSpawner.tls_config, dict)}
+    client_kwargs = {**get_or_init(c.Spawner.client_kwargs, dict)} # {**get_or_init(c.DockerSpawner.client_kwargs, dict), **get_or_init(c.MLHubDockerSpawner.client_kwargs, dict)}
+    tls_config = {**get_or_init(c.Spawner.tls_config, dict)} # {**get_or_init(c.DockerSpawner.tls_config, dict), **get_or_init(c.MLHubDockerSpawner.tls_config, dict)}
 
     docker_client = utils.init_docker_client(client_kwargs, tls_config)
     try:
@@ -193,6 +194,10 @@ elif ENV_EXECUTION_MODE == utils.EXECUTION_MODE_LOCAL:
     # For cleanup-service
     service_environment.update({"DOCKER_CLIENT_KWARGS": json.dumps(client_kwargs), "DOCKER_TLS_CONFIG": json.dumps(tls_config)})
     service_host = "127.0.0.1"
+
+    # Consider the case where the user-config contains c.DockerSpawner.environment instead of c.Spawner.environment
+    # c.DockerSpawner.environment = get_or_init(c.DockerSpawner.environment, dict)
+    # c.Spawner.environment.update(c.DockerSpawner.environment)
     #c.MLHubDockerSpawner.hub_name = ENV_HUB_NAME
 
 # Add nativeauthenticator-specific templates
