@@ -61,14 +61,21 @@ Any given name (`--name`) will be overruled by the environment variable `HUB_NAM
 
 ### Start an instance via Kubernetes
 
-Via helm: 
+Via Helm:
+
 ```bash
 RELEASE=mlhub # change if needed
 NAMESPACE=$RELEASE # change if needed
+
 helm upgrade --install $RELEASE mlhub-chart-1.0.1.tgz --namespace $NAMESPACE
 ```
 
-<!-- TODO: add for "normal" Kubernetes as well -->
+You can find the chart file attached to the [release](https://github.com/ml-tooling/ml-hub/releases).
+
+<!-- TODO: add for "normal" Kubernetes as well? -->
+<!-- The problem is with the pre-packaged chart, the proxy.token is constant... 
+Document how to create the secret and remove it from the filled template?
+-->
 
 <!-- For Kubernetes deployment, we forked and modified [zero-to-jupyterhub-k8s](https://github.com/jupyterhub/zero-to-jupyterhub-k8s) which you can find [here](https://github.com/ml-tooling/zero-to-mlhub-k8s). -->
 
@@ -208,6 +215,26 @@ You can activate ssl via the environment variable `SSL_ENABLED`. If you don't pr
 <summary>Details (click to expand...)</summary>
 
 If you have an own certificate, mount the certificate and key files as `cert.crt` and `cert.key`, respectively, as read-only at `/resources/ssl`, so that the container has access to `/resources/ssl/cert.crt` and `/resources/ssl/cert.key`.
+
+For Docker, mount a volume at the path like `-v my-ssl-files:/resources/ssl`.
+For Kubernetes, add following lines to the `config.yaml` file (based on [setup-manual-https.](https://zero-to-jupyterhub.readthedocs.io/en/latest/administrator/security.html#set-up-manual-https)):
+
+```yaml
+proxy:
+  https:
+    hosts:
+      - <your-domain-name>
+    type: manual
+    manual:
+      key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        ...
+        -----END RSA PRIVATE KEY-----
+      cert: |
+        -----BEGIN CERTIFICATE-----
+        ...
+        -----END CERTIFICATE-----
+```
 
 </details>
 
