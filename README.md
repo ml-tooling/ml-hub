@@ -37,7 +37,7 @@ MLHub is based on [JupyterHub](https://github.com/jupyterhub/jupyterhub) with co
 
 ## Overview in a Nutshell
 
-- It can be configured like JupyterHub with a normal JupyterHub configuration, with minor adjustments in the Kubernetes scenario.
+- MLHub can be configured like JupyterHub with a normal JupyterHub configuration, with minor adjustments in the Kubernetes scenario.
 - The documentation provides an overview of how to use and configure it in Docker-local and Kubernetes mode.
 - More information about the Helm chart resources for Kubernetes can be found [here](https://github.com/ml-tooling/zero-to-mlhub-k8s).
 - We created two custom Spawners that are based on the official [DockerSpawner](https://github.com/jupyterhub/dockerspawner) and [KubeSpawner](https://github.com/jupyterhub/kubespawner) and, hence, support their configurations set via the JupyterHub config.
@@ -172,7 +172,7 @@ Additionally to the `jupyterhub_user_config.py`, which can be used to configure 
 
 ```yaml
 
-config:
+mlhub:
   baseUrl: "/mlhub" # corresponds to c.JupyterHub.base_url
   debug: true # corresponds to c.JupyterHub.debug
   secretToken: <32 characters random string base64 encoded> # corresponds to c.JupyterHub.proxy_auth_token
