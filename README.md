@@ -25,7 +25,7 @@
   <a href="#contribution">Contribution</a>
 </p>
 
-MLHub is based on [JupyterHub](https://github.com/jupyterhub/jupyterhub) with complete focus on Docker and Kubernetes. MLHub allows to create and manage multiple [workspaces](https://github.com/ml-tooling/ml-workspace), for example to distribute them to a group of people or within a team.
+MLHub is based on [JupyterHub](https://github.com/jupyterhub/jupyterhub) with complete focus on Docker and Kubernetes. MLHub allows to create and manage multiple [workspaces](https://github.com/ml-tooling/ml-workspace), for example to distribute them to a group of people or within a team. The standard configuration allows a setup within seconds.
 
 ## Highlights
 
@@ -34,6 +34,13 @@ MLHub is based on [JupyterHub](https://github.com/jupyterhub/jupyterhub) with co
 - 🖥 Access additional tools within the started workspaces by having secured routes.
 - 🎛 Tunnel SSH connections to workspace containers.
 - 🐳 Focused on Docker and Kubernetes with enhanced functionality.
+
+## Overview in a Nutshell
+
+- It can be configured like JupyterHub with a normal JupyterHub configuration, with minor adjustments in the Kubernetes scenario.
+- The documentation provides an overview of how to use and configure it in Docker-local and Kubernetes mode.
+- More information about the Helm chart resources for Kubernetes can be found [here](https://github.com/ml-tooling/zero-to-mlhub-k8s).
+- We created two custom Spawners that are based on the official [DockerSpawner](https://github.com/jupyterhub/dockerspawner) and [KubeSpawner](https://github.com/jupyterhub/kubespawner) and, hence, support their configurations set via the JupyterHub config.
 
 ## Getting Started
 
@@ -70,25 +77,17 @@ NAMESPACE=$RELEASE # change if needed
 helm upgrade --install $RELEASE mlhub-chart-1.0.1.tgz --namespace $NAMESPACE
 
 # In case you just want to use the templating mechanism of Helm without deploying tiller on your cluster
-# 1. Use the "helm template ..." command
+# 1. Use the "helm template ..." command. The template command also excepts flags such as --config and --set-file as described in the respective Sections in this documentation.
 # 2. kubectl apply -f templates/hub && kubectl apply -f templates/proxy
 ```
 
 You can find the chart file attached to the [release](https://github.com/ml-tooling/ml-hub/releases).
 
-<!-- TODO: add for "normal" Kubernetes as well? -->
-<!-- The problem is with the pre-packaged chart, the proxy.token is constant... 
-Document how to create the secret and remove it from the filled template?
-Also, HTTPS information has to be provided. Create a ConfigMap based on the config.yaml?
--->
-
-<!-- For Kubernetes deployment, we forked and modified [zero-to-jupyterhub-k8s](https://github.com/jupyterhub/zero-to-jupyterhub-k8s) which you can find [here](https://github.com/ml-tooling/zero-to-mlhub-k8s). -->
-
 ### Configuration
 
 #### Default Login
 
-When using the default config - so leaving the JupyterHub config `c.Authenticator.admin_users` as it is -, a user named `admin` can access the hub with admin rights. If you use the default `NativeAuthenticator` as authenticator, youc must register the user `admin` with a password of your choice first before login in.
+When using the default config - so leaving the JupyterHub config `c.Authenticator.admin_users` as it is -, a user named `admin` can access the hub with admin rights. If you use the default `NativeAuthenticator` as authenticator, you must register the user `admin` with a password of your choice first before login in.
 If you use a different authenticator, you might want to set a different user as initial admin user as well, for example in case of using oauth you want to set `c.Authenticator.admin_users` to a username returned by the oauth login.
 
 #### Environment Variables
@@ -117,7 +116,7 @@ Here are the additional environment variables for the hub:
     <tr>
         <td>EXECUTION_MODE</td>
         <td>Defines in which execution mode the hub is running in. Value is one of [local | k8s]</td>
-        <td>local <div style="font-size: 12px;">(if you use the helm chart, the value is already set to <i>k8s</i>)</div></td>
+        <td>local <div>(if you use the helm chart, the value is already set to <i>k8s</i>)</div></td>
     </tr>
     <tr>
         <td>DYNAMIC_WHITELIST_ENABLED</td>
@@ -131,7 +130,7 @@ Here are the additional environment variables for the hub:
         <td>
             Interval in which expired and not-used resources are deleted. Set to -1 to disable the automatic cleanup. For more information, see Section <a href="https://github.com/ml-tooling/ml-hub#cleanup-service">Cleanup Service</a>.
         </td>
-        <td>3600 <div style="font-size: 12px;">(currently disabled in Kubernetes)</div></td>
+        <td>3600 <div>(currently disabled in Kubernetes)</div></td>
     </tr>
 </table>
 
@@ -233,6 +232,8 @@ proxy:
 
 We override [DockerSpawner](https://github.com/ml-tooling/ml-hub/blob/master/resources/mlhubspawner/mlhubspawner/mlhubspawner.py) and [KubeSpawner](https://github.com/ml-tooling/ml-hub/blob/master/resources/mlhubspawner/mlhubspawner/mlhubkubernetesspawner.py) for Docker and Kubernetes, respectively. We do so to add convenient labels and environment variables. Further, we return a custom option form to configure the resouces of the workspaces. The overriden Spawners can be configured the same way as the base Spawners as stated in the [Configuration Section](#configuration).
 
+All resources created by our custom spawners are labeled (Docker / Kubernetes labels) with the labels `mlhub.origin` set to the Hub name `$ENV_HUB_NAME`, `mlhub.user` set to the JupyterHub user the resources belongs to, and `mlhub.server_name` to the named server name. For example, if the hub name is "mlhub" and a user named "foo" has a named server "bar", the labels would be `mlhub.origin=mlhub`, `mlhub.user=foo`, `mlhub.server_name=bar`.
+
 #### DockerSpawner
 
 - We create a separate Docker network for each user, which means that (named) workspaces of the same user can see each other but workspaces of different users cannot see each other. Doing so adds another security layer in case a user starts a service within the own workspace and does not properly secure it.
@@ -241,7 +242,6 @@ We override [DockerSpawner](https://github.com/ml-tooling/ml-hub/blob/master/res
 
 - Create / delete services for a workspace, so that the hub can access them via Kubernetes DNS.
 
-All resources created by our custom spawners are labeled (Docker / Kubernetes labels) with the labels `mlhub.origin` set to the Hub name `$ENV_HUB_NAME`, `mlhub.user` set to the JupyterHub user the resources belongs to, and `mlhub.server_name` to the named server name. For example, if the hub name is "mlhub" and a user named "foo" has a named server "bar", the labels would be `mlhub.origin=mlhub`, `mlhub.user=foo`, `mlhub.server_name=bar`.
 
 ## Support
 
