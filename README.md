@@ -43,7 +43,7 @@ MLHub is based on [JupyterHub](https://github.com/jupyterhub/jupyterhub) with co
 - Kubernetes (for Kubernetes modes)
 - Helm (for easy deployment via our [helm chart](https://github.com/ml-tooling/ml-hub/releases/download/0.1.4/mlhub-chart-0.1.4.tgz))
 
-Most parts will be identical to the configuration of JupyterHub 1.0.0. One of the things that are different is that ssl will not be activated on proxy or hub-level, but on our nginx proxy.
+Most parts will be identical to the configuration of JupyterHub 1.0.0. One of the things done differently is that ssl will not be activated on proxy or hub-level, but on our nginx proxy.
 
 ### Start an instance via Docker
 
@@ -68,6 +68,10 @@ RELEASE=mlhub # change if needed
 NAMESPACE=$RELEASE # change if needed
 
 helm upgrade --install $RELEASE mlhub-chart-1.0.1.tgz --namespace $NAMESPACE
+
+# In case you just want to use the templating mechanism of Helm without deploying tiller on your cluster
+# 1. Use the "helm template ..." command
+# 2. kubectl apply -f templates/hub && kubectl apply -f templates/proxy
 ```
 
 You can find the chart file attached to the [release](https://github.com/ml-tooling/ml-hub/releases).
@@ -89,7 +93,7 @@ If you use a different authenticator, you might want to set a different user as 
 
 #### Environment Variables
 
-MLHub is based on [SSH Proxy](https://github.com/ml-tooling/ssh-proxy). Check out SSH Proxy for ssh-related configurations.
+MLHub is based on [SSH Proxy](https://github.com/ml-tooling/ssh-proxy). Check out SSH Proxy for ssh-related configurations. Check the [Configuration Section](#configuration) for details how to pass them, especially in the Kubernetes setup.
 Here are the additional environment variables for the hub:
 <table>
     <tr>
@@ -106,54 +110,30 @@ Here are the additional environment variables for the hub:
         <td>mlhub</td>
     </tr>
     <tr>
+        <td>SSL_ENABLED</td>
+        <td>Enable SSL. If you don't provide an ssl certificate as described in <a href="https://github.com/ml-tooling/ml-hub#enable-sslhttps">Section "Enable SSL/HTTPS"</a>, certificates will be generated automatically. As this auto-generated certificate is not signed, you have to trust it in the browser. Without ssl enabled, ssh access won't work as the container uses a single port and has to tell https and ssh traffic apart.</td>
+        <td>false</td>
+    </tr>
+    <tr>
         <td>EXECUTION_MODE</td>
-        <td>Defines in which execution mode the hub is running in. Value is one of [docker | k8s]</td>
-        <td>local</td>
+        <td>Defines in which execution mode the hub is running in. Value is one of [local | k8s]</td>
+        <td>local (If you use the helm chart, the value is already set to <i>k8s</i>)</td>
+    </tr>
+    <tr>
+        <td>DYNAMIC_WHITELIST_ENABLED</td>
+        <td>
+            Enables each Authenticator to use a file as a whitelist of usernames. The file must contain one whitelisted username per line and must be mounted to <i>/resources/users/dynamic_whitelist.txt</i>. The file can be dynamically modified. The <i>c.Authenticator.whitelist</i> configuration is <b>not</b> considered! If set to true but the file does not exist,the normal whitelist behavior of JupyterHub is used. Keep in mind that already logged in users stay authenticated even if removed from the list - they just cannot login again.
+        </td>
+        <td>false</td>
     </tr>
     <tr>
         <td>CLEANUP_INTERVAL_SECONDS</td>
         <td>
             Interval in which expired and not-used resources are deleted. Set to -1 to disable the automatic cleanup. For more information, see Section <a href="https://github.com/ml-tooling/ml-hub#cleanup-service">Cleanup Service</a>.
         </td>
-        <td>3600</td>
-    </tr>
-    <tr>
-        <td>DYNAMIC_WHITELIST_ENABLED</td>
-        <td>
-            Enables each Authenticator to use a file as a whitelist of usernames. The file must contain one whitelisted username per line and must be mounted to /resources/users/dynamic_whitelist.txt. The file can be dynamically modified. Keep in mind that already logged in users stay authenticated even if removed from the list - they just cannot login again.
-        </td>
-        <td>false</td>
-    </tr>
-    <tr>
-        <td>SSL_ENABLED</td>
-        <td>Enable SSL. If you don't provide an ssl certificate as described in <a href="https://github.com/ml-tooling/ml-hub#enable-sslhttps">Section "Enable SSL/HTTPS"</a>, certificates will be generated automatically. As this auto-generated certificate is not signed, you have to trust it in the browser. Without ssl enabled, ssh access won't work as the container uses a single port and has to tell https and ssh traffic apart.</td>
-        <td>false</td>
-    </tr>
-    <tr>
-        <td>START_SSH</td>
-        <td>Start the sshd process which is used to tunnel ssh to the workspaces.</td>
-        <td>true</td>
-    </tr>
-    <tr>
-        <td>START_NGINX</td>
-        <td>Whether or not to start the nginx proxy. If the Hub should be used without additional tool routing to workspaces, this could be disabled. SSH port 22 would need to be published separately then. This option is built-in to work with <a href="https://github.com/ml-tooling/zero-to-mlhub-k8s"> zero-to-mlhub-k8s</a>
-        </td>
-        <td>true</td>
-    </tr>
-    <tr>
-        <td>START_JHUB</td>
-        <td>Start the JupyterHub hub. This option is built-in to work with
-        <a href="https://github.com/ml-tooling/zero-to-mlhub-k8s"> zero-to-mlhub-k8s</a>, where the image is also used as the CHP image.</td>
-        <td>true</td>
-    </tr>
-    <tr>
-        <td>START_CHP</td>
-        <td>Start the JupyterHub proxy process separately (The hub should not start the proxy itself, which can be configured via the JupyterHub config file. This option is built-in to work with <a href="https://github.com/ml-tooling/zero-to-mlhub-k8s"> zero-to-mlhub-k8s</a>, where the image is also used as the Configurable-Http-Proxy (CHP) image. Additional arguments to the chp-start command can be passed to the container by passing an environment variable ADDITIONAL_ARGS, e.g. --env ADDITIONAL_ARGS="--ip=0.0.0.0 --api-ip=0.0.0.0".</td>
-        <td>false</td>
+        <td>3600 (currently disabled in Kubernetes)</td>
     </tr>
 </table>
-
-> ℹ️ _Via the START\_* environment variables, you can define what is started within the container. It's like this since the mlhub image is used in our Kubernetes setup for both, the hub and the proxy container. We did not want to break those functionalities into different images for now._
 
 #### JupyterHub Config
 
@@ -182,25 +162,24 @@ In Docker, mount a custom config like `-v /jupyterhub_user_config:/resources/jup
 
 ##### Kubernetes
 
-When using Helm, you can pass the configuration to the installation command via `--set-file userConfig=./jupyterhub_user_config.py`. So the complete command could look like `helm upgrade --install mlhub mlhub-chart-1.0.1.tgz --namespace mlhub --set-file userConfig=./jupyterhub_user_config.py`. Have a look at the [KubeSpawner properties](https://jupyterhub-kubespawner.readthedocs.io/en/latest/spawner.html) to see what can be configured.
+When using Helm, you can pass the configuration to the installation command via `--set-file userConfig=./jupyterhub_user_config.py`. So the complete command could look like `helm upgrade --install mlhub mlhub-chart-1.0.1.tgz --namespace mlhub --set-file userConfig=./jupyterhub_user_config.py`. Have a look at the [KubeSpawner properties](https://jupyterhub-kubespawner.readthedocs.io/en/latest/spawner.html) to see what can be configured for the Spawner.
 
-> **Info:** The JupyterHub configurations `c.JupyterHub.base_url`, `c.JupyterHub.proxy_auth_token`, and `c.JupyterHub.debug` cannot be set in the `jupyterhub_user_config.py`. Instead, if you want to specify them, you have to do it in the `config.yaml` (see below).
+Additionally to the `jupyterhub_user_config.py`, which can be used to configure JupyterHub or the KubeSpawner, you can provide a `config.yaml` where you can make some Kubernetes-deployment specific configurations.
 
-Additionally to the `jupyterhub_user_config.py`, which can be used to configure JupyterHub or the Spawner, you can provide a `config.yaml` where you can make some Kubernetes-deployment specific configurations.
-Additionally, you have to use this yaml file for the settings `c.JupyterHub.base_url` and `c.JupyterHub.proxy_auth_token` as they have to be shared between services and, thus, have to be known during deployment.
+> ℹ️ _Some JupyterHub configurations cannot be set in the `jupyterhub_user_config.py` as they have to be shared between services and, thus, have to be known during deployment. Instead, if you want to specify them, you have to do it in the `config.yaml` (see below)._
 
 <details>
-<summary>A <i>config.yaml</i> where you set those values could look like following: (click to expand...)</summary>
+<summary>A <i>config.yaml</i> where you can set those values could look like following: (click to expand...)</summary>
 
 ```yaml
-proxy:
-  secretToken: <32 characters random string base64 encoded>
 
-hub:
-  baseUrl: "/mlhub"
+config:
+  baseUrl: "/mlhub" # corresponds to c.JupyterHub.base_url
+  debug: true # corresponds to c.JupyterHub.debug
+  secretToken: <32 characters random string base64 encoded> # corresponds to c.JupyterHub.proxy_auth_token
+  env: # used to set environment variables as described in the Section "Environment Variables"
+    DYNAMIC_WHITELIST_ENABLED: true
 
-debug:
-  enabled: true
 ```
 
 </details>
@@ -222,9 +201,12 @@ For Docker, mount a volume at the path like `-v my-ssl-files:/resources/ssl`.
 For Kubernetes, add following lines to the `config.yaml` file (based on [setup-manual-https.](https://zero-to-jupyterhub.readthedocs.io/en/latest/administrator/security.html#set-up-manual-https)):
 
 ```yaml
-proxy:
-  extraEnv:
+
+config:
+  env:
     SSL_ENABLED: true
+
+proxy:
   https:
     hosts:
       - <your-domain-name>
@@ -316,9 +298,50 @@ The service has two endpoints which can be reached under the Hub service url `/s
 
 - `GET /services/cleanup-service/expired`: When starting a named workspace, an expiration date can be assigned to it. This endpoint will delete all containers that are expired. The respective named server is deleted from the JupyterHub database and also the Docker/Kubernetes resource is deleted.
 
-## Customization
+## FAQ
 
-- Logo: if you want to have your own logo in the corner, place it at `/usr/local/share/jupyterhub/static/images/jupyter.png` inside the hub container.
+<details>
+<summary><b>How to change the logo shown in the webapp?</b> (click to expand...)</summary>
+
+If you want to have your own logo in the corner, place it at `/usr/local/share/jupyterhub/static/images/jupyter.png` inside the hub container.
+</details>
+
+<details>
+<summary><b>What are the additional environment variables I have seen in the code?</b> (click to expand...)</summary>
+
+Via the START\_* environment variables you can define what is started within the container. It's like this since the MLHub image is used in our Kubernetes setup for both, the hub and the proxy container. We did not want to break those functionalities into different images for now. They are probably configured in the provided Helm chart and, thus, do **not** have to be configured by you.
+
+<table>
+    <tr>
+        <th>Variable</th>
+        <th>Description</th>
+        <th>Default</th>
+    </tr>
+    <tr>
+        <td>START_SSH</td>
+        <td>Start the sshd process which is used to tunnel ssh to the workspaces.</td>
+        <td>true</td>
+    </tr>
+    <tr>
+        <td>START_NGINX</td>
+        <td>Whether or not to start the nginx proxy. If the Hub should be used without additional tool routing to workspaces, this could be disabled. SSH port 22 would need to be published separately then. This option is built-in to work with <a href="https://github.com/ml-tooling/zero-to-mlhub-k8s"> zero-to-mlhub-k8s</a>
+        </td>
+        <td>true</td>
+    </tr>
+    <tr>
+        <td>START_JHUB</td>
+        <td>Start the JupyterHub hub. This option is built-in to work with
+        <a href="https://github.com/ml-tooling/zero-to-mlhub-k8s"> zero-to-mlhub-k8s</a>, where the image is also used as the CHP image.</td>
+        <td>true</td>
+    </tr>
+    <tr>
+        <td>START_CHP</td>
+        <td>Start the JupyterHub proxy process separately (The hub should not start the proxy itself, which can be configured via the JupyterHub config file. This option is built-in to work with <a href="https://github.com/ml-tooling/zero-to-mlhub-k8s"> zero-to-mlhub-k8s</a>, where the image is also used as the Configurable-Http-Proxy (CHP) image. Additional arguments to the chp-start command can be passed to the container by passing an environment variable ADDITIONAL_ARGS, e.g. --env ADDITIONAL_ARGS="--ip=0.0.0.0 --api-ip=0.0.0.0".</td>
+        <td>false</td>
+    </tr>
+</table>
+
+</details>
 
 ## Contribution
 
