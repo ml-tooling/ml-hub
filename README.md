@@ -312,6 +312,73 @@ If you want to have your own logo in the corner, place it at `/usr/local/share/j
 </details>
 
 <details>
+<summary><b>Do you have an example for Kubernetes?</b> (click to expand...)</summary>
+
+Following setup is tested and should work. It uses AzureOAuth as the authenticator and has HTTPS enabled.
+
+*Command*
+
+```
+helm upgrade \
+    --install mlhub \
+    mlhub-chart-2.0.0.tgz \
+    --namespace mlhub \
+    --values config.yaml \
+    --set-file userConfig=./jupyterhub_user_config.py
+```
+
+*Folder structure*
+
+```
+ .
+  /config.yaml
+  /jupyterhub_user_config.yaml
+```
+
+*config.yaml*
+
+```yaml
+
+mlhub:
+  env:
+    SSL_ENABLED: true
+    AAD_TENANT_ID: "<azure-tenant-id"
+
+proxy:
+  https:
+    hosts:
+      - mydomain.com
+    type: manual
+    manual:
+      key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        ...
+        -----END RSA PRIVATE KEY-----
+      cert: |
+        -----BEGIN CERTIFICATE-----
+        ...
+        -----END CERTIFICATE-----
+
+```
+
+*jupyterhub_user_config.py*
+
+```python
+import os
+c.KubeSpawner.environment = {"FOO_TEST": "BAR_TEST"}
+
+c.JupyterHub.authenticator_class = "oauthenticator.azuread.AzureAdOAuthenticator"
+c.AzureAdOAuthenticator.oauth_callback_url = "https://mydomain.com:8080/hub/oauth_callback"
+c.AzureAdOAuthenticator.client_id = "<id>"
+c.AzureAdOAuthenticator.client_secret = "<secret>"
+c.AzureAdOAuthenticator.admin_users = ["some-user"]
+c.AzureAdOAuthenticator.tenant_id = os.environ.get('AAD_TENANT_ID')
+
+```
+
+</details>
+
+<details>
 <summary><b>What are the additional environment variables I have seen in the code?</b> (click to expand...)</summary>
 
 Via the START\_* environment variables you can define what is started within the container. It's like this since the MLHub image is used in our Kubernetes setup for both, the hub and the proxy container. We did not want to break those functionalities into different images for now. They are probably configured in the provided Helm chart and, thus, do **not** have to be configured by you.
