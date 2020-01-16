@@ -117,7 +117,7 @@ Here are the additional environment variables for the hub:
     <tr>
         <td>EXECUTION_MODE</td>
         <td>Defines in which execution mode the hub is running in. Value is one of [local | k8s]</td>
-        <td>local (If you use the helm chart, the value is already set to <i>k8s</i>)</td>
+        <td>local <div style="font-size: 12px;">(if you use the helm chart, the value is already set to <i>k8s</i>)</div></td>
     </tr>
     <tr>
         <td>DYNAMIC_WHITELIST_ENABLED</td>
@@ -131,7 +131,7 @@ Here are the additional environment variables for the hub:
         <td>
             Interval in which expired and not-used resources are deleted. Set to -1 to disable the automatic cleanup. For more information, see Section <a href="https://github.com/ml-tooling/ml-hub#cleanup-service">Cleanup Service</a>.
         </td>
-        <td>3600 (currently disabled in Kubernetes)</td>
+        <td>3600 <div style="font-size: 12px;">(currently disabled in Kubernetes)</div></td>
     </tr>
 </table>
 
