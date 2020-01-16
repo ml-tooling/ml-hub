@@ -156,11 +156,11 @@ c.Spawner.environment = {"FOO": "BAR"}
 c.Spawner.workspace_images = ["mltooling/ml-workspace-r:0.8.7"]
 ```
 
-##### Docker-local
+**Docker-local**
 
 In Docker, mount a custom config like `-v /jupyterhub_user_config:/resources/jupyterhub_user_config.py`. Have a look at the [DockerSpawner properties](https://github.com/jupyterhub/dockerspawner/blob/master/dockerspawner/dockerspawner.py) to see what can be configured.
 
-##### Kubernetes
+**Kubernetes**
 
 When using Helm, you can pass the configuration to the installation command via `--set-file userConfig=./jupyterhub_user_config.py`. So the complete command could look like `helm upgrade --install mlhub mlhub-chart-1.0.1.tgz --namespace mlhub --set-file userConfig=./jupyterhub_user_config.py`. Have a look at the [KubeSpawner properties](https://jupyterhub-kubespawner.readthedocs.io/en/latest/spawner.html) to see what can be configured for the Spawner.
 
@@ -197,11 +197,11 @@ You can activate ssl via the environment variable `SSL_ENABLED`. If you don't pr
 
 If you have an own certificate, mount the certificate and key files as `cert.crt` and `cert.key`, respectively, as read-only at `/resources/ssl`, so that the container has access to `/resources/ssl/cert.crt` and `/resources/ssl/cert.key`.
 
-#### Docker-local
+**Docker-local**
 
 For Docker, mount a volume at the path like `-v my-ssl-files:/resources/ssl`.
 
-#### Kubernetes
+**Kubernetes**
 
 For Kubernetes, add following lines to the `config.yaml` file (based on [setup-manual-https.](https://zero-to-jupyterhub.readthedocs.io/en/latest/administrator/security.html#set-up-manual-https)):
 
