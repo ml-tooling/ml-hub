@@ -197,7 +197,12 @@ You can activate ssl via the environment variable `SSL_ENABLED`. If you don't pr
 
 If you have an own certificate, mount the certificate and key files as `cert.crt` and `cert.key`, respectively, as read-only at `/resources/ssl`, so that the container has access to `/resources/ssl/cert.crt` and `/resources/ssl/cert.key`.
 
+#### Docker-local
+
 For Docker, mount a volume at the path like `-v my-ssl-files:/resources/ssl`.
+
+#### Kubernetes
+
 For Kubernetes, add following lines to the `config.yaml` file (based on [setup-manual-https.](https://zero-to-jupyterhub.readthedocs.io/en/latest/administrator/security.html#set-up-manual-https)):
 
 ```yaml
