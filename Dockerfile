@@ -106,20 +106,21 @@ RUN \
 ### INCUBATION ZONE ###
 
 # Kubernetes Support
-ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/z2jh.py /usr/local/lib/python3.6/dist-packages/z2jh.py
 ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/cull_idle_servers.py /usr/local/bin/cull_idle_servers.py
+ADD resources/kubernetes/jupyterhub_chart_config.py $_RESOURCES_PATH/jupyterhub_chart_config.py
 # Copy the jupyterhub config that has a lot of options to be configured
-ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/jupyterhub_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_chart_config.py
-ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/requirements.txt /tmp/requirements.txt
 
-RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
-         -r /tmp/requirements.txt && \
-         chmod u+rx /usr/local/bin/cull_idle_servers.py && \
-         chmod u+rx /usr/local/lib/python3.6/dist-packages/z2jh.py && \
-         # Cleanup
-         clean-layer.sh
+RUN chmod u+rx /usr/local/bin/cull_idle_servers.py 
 
-RUN pip3 install oauthenticator psutil
+RUN pip3 install oauthenticator psutil yamlreader pyjwt \
+         # https://github.com/jupyterhub/kubespawner
+         # https://pypi.org/project/jupyterhub-kubespawner
+         jupyterhub-kubespawner==0.11.* \
+         # https://github.com/kubernetes-client/python
+         # https://pypi.org/project/kubernetes
+         kubernetes==10.0.* \
+         # https://pypi.org/project/pycurl/
+         pycurl==7.43.0.*
 RUN apt-get update && apt-get install -y pcregrep && clean-layer.sh
 
 ### END INCUBATION ZONE ###

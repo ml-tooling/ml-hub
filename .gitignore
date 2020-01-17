@@ -50,3 +50,5 @@ hs_err_pid*
 *.swp
 temp/*
 .DS_Store
+
+helmchart/*.tgz

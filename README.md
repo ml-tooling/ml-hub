@@ -39,7 +39,7 @@ MLHub is based on [JupyterHub](https://github.com/jupyterhub/jupyterhub) with co
 
 - MLHub can be configured like JupyterHub with a normal JupyterHub configuration, with minor adjustments in the Kubernetes scenario.
 - The documentation provides an overview of how to use and configure it in Docker-local and Kubernetes mode.
-- More information about the Helm chart resources for Kubernetes can be found [here](https://github.com/ml-tooling/zero-to-mlhub-k8s).
+- More information about the Helm chart resources for Kubernetes can be found [here](https://github.com/ml-tooling/ml-hub/tree/master/helmchart).
 - We created two custom Spawners that are based on the official [DockerSpawner](https://github.com/jupyterhub/dockerspawner) and [KubeSpawner](https://github.com/jupyterhub/kubespawner) and, hence, support their configurations set via the JupyterHub config.
 
 ## Getting Started
@@ -74,7 +74,7 @@ Via Helm:
 RELEASE=mlhub # change if needed
 NAMESPACE=$RELEASE # change if needed
 
-helm upgrade --install $RELEASE mlhub-chart-1.0.1.tgz --namespace $NAMESPACE
+helm upgrade --install $RELEASE mlhub-chart-2.0.0.tgz --namespace $NAMESPACE
 
 # In case you just want to use the templating mechanism of Helm without deploying tiller on your cluster
 # 1. Use the "helm template ..." command. The template command also excepts flags such as --config and --set-file as described in the respective Sections in this documentation.
@@ -184,7 +184,7 @@ mlhub:
 </details>
 
 You can pass the file via `--values config.yaml`. The complete command would look like `helm upgrade --install mlhub mlhub-chart-1.0.1.tgz --namespace mlhub --values config.yaml`. The `--set-file userConfig=./jupyterhub_user_config.py` flag can additionally be set.
-You can find the Helm chart resources in the repository [zero-to-mlhub-with-kubernetes](https://github.com/ml-tooling/zero-to-mlhub-k8s); the [values file](https://github.com/ml-tooling/zero-to-mlhub-k8s/blob/master/jupyterhub/values.yaml) contains the default values for the deployment.
+You can find the Helm chart resources, including the values file that contains the default values, in the directory `helmchart`).
 
 ### Enable SSL/HTTPS
 
@@ -206,7 +206,7 @@ For Kubernetes, add following lines to the `config.yaml` file (based on [setup-m
 
 ```yaml
 
-config:
+mlhub:
   env:
     SSL_ENABLED: true
 
@@ -396,19 +396,18 @@ Via the START\_* environment variables you can define what is started within the
     </tr>
     <tr>
         <td>START_NGINX</td>
-        <td>Whether or not to start the nginx proxy. If the Hub should be used without additional tool routing to workspaces, this could be disabled. SSH port 22 would need to be published separately then. This option is built-in to work with <a href="https://github.com/ml-tooling/zero-to-mlhub-k8s"> zero-to-mlhub-k8s</a>
+        <td>Whether or not to start the nginx proxy. If the Hub should be used without additional tool routing to workspaces, this could be disabled. SSH port 22 would need to be published separately then. This option is built-in to work with our Kubernetes Helm chart.
         </td>
         <td>true</td>
     </tr>
     <tr>
         <td>START_JHUB</td>
-        <td>Start the JupyterHub hub. This option is built-in to work with
-        <a href="https://github.com/ml-tooling/zero-to-mlhub-k8s"> zero-to-mlhub-k8s</a>, where the image is also used as the CHP image.</td>
+        <td>Start the JupyterHub hub.</td>
         <td>true</td>
     </tr>
     <tr>
         <td>START_CHP</td>
-        <td>Start the JupyterHub proxy process separately (The hub should not start the proxy itself, which can be configured via the JupyterHub config file. This option is built-in to work with <a href="https://github.com/ml-tooling/zero-to-mlhub-k8s"> zero-to-mlhub-k8s</a>, where the image is also used as the Configurable-Http-Proxy (CHP) image. Additional arguments to the chp-start command can be passed to the container by passing an environment variable ADDITIONAL_ARGS, e.g. --env ADDITIONAL_ARGS="--ip=0.0.0.0 --api-ip=0.0.0.0".</td>
+        <td>Start the JupyterHub proxy process separately (The hub should not start the proxy itself, which can be configured via the JupyterHub config file. This option is built-in to work with our Kubernetes Helm chart, where the image is also used as the Configurable-Http-Proxy (CHP) image. Additional arguments to the chp-start command can be passed to the container by passing an environment variable ADDITIONAL_ARGS, e.g. --env ADDITIONAL_ARGS="--ip=0.0.0.0 --api-ip=0.0.0.0".</td>
         <td>false</td>
     </tr>
 </table>

@@ -155,7 +155,8 @@ service_environment = {
 # In Kubernetes mode, load the Kubernetes Jupyterhub config that can be configured via a config.yaml.
 # Those values will override the values set above, as it is loaded afterwards.
 if ENV_EXECUTION_MODE == utils.EXECUTION_MODE_KUBERNETES:
-    load_subconfig("{}/kubernetes/jupyterhub_chart_config.py".format(os.getenv("_RESOURCES_PATH")))
+    # NOTE: only load when deployed via helm chart and not manual Kubernetes?
+    load_subconfig("{}/jupyterhub_chart_config.py".format(os.getenv("_RESOURCES_PATH")))
 
     c.JupyterHub.spawner_class = 'mlhubspawner.MLHubKubernetesSpawner'
     c.KubeSpawner.pod_name_template = c.Spawner.name_template

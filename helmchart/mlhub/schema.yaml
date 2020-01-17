@@ -1,0 +1,528 @@
+title: Config
+type: object
+properties:
+
+  mlhub:
+    secretToken:
+        type: string
+        description: |
+          A 32-byte cryptographically secure randomly generated string used to secure communications
+          between the hub and the configurable-http-proxy.
+
+          ```sh
+          # to generate a value, run
+          openssl rand -hex 32
+          ```
+
+          Changing this value will cause the proxy and hub pods to restart. It is good security
+          practice to rotate these values over time. If this secret leaks, *immediately* change
+          it to something else, or user data can be compromised
+
+  hub:
+    type: object
+    properties:
+      imagePullPolicy:
+        type: string
+        enum:
+          - IfNotPresent
+          - Always
+          - Never
+        description: |
+          Set the imagePullPolicy on the hub pod.
+
+          See the [Kubernetes docs](https://kubernetes.io/docs/concepts/containers/images/#updating-images)
+          for more info on what the values mean.
+      imagePullSecret:
+        type: object
+        description: |
+          Creates an image pull secret for you and makes the hub pod utilize
+          it, allowing it to pull images from private image registries.
+          
+          Using this configuration option automates the following steps that
+          normally is required to pull from private image registries.
+          
+          ```sh
+          # you won't need to run this manually...
+          kubectl create secret docker-registry hub-image-credentials \
+            --docker-server=<REGISTRY> \
+            --docker-username=<USERNAME> \
+            --docker-email=<EMAIL> \
+            --docker-password=<PASSWORD>
+          ```
+
+          ```yaml
+          # you won't need to specify this manually...
+          spec:
+            imagePullSecrets:
+              - name: hub-image-credentials
+          ```
+
+          To learn the username and password fields to access a gcr.io registry
+          from a Kubernetes cluster not associated with the same google cloud
+          credentials, look into [this
+          guide](http://docs.heptio.com/content/private-registries/pr-gcr.html)
+          and read the notes about the password.
+        properties:
+          enabled:
+            type: boolean
+            description: |
+              Enable the creation of a Kubernetes Secret containing credentials
+              to access a image registry. By enabling this, the hub pod will also be configured
+              to use these credentials when it pulls its container image.
+          registry:
+            type: string
+            description: |
+              Name of the private registry you want to create a credential set
+              for. It will default to Docker Hub's image registry.
+
+              Examples:
+                - https://index.docker.io/v1/
+                - quay.io
+                - eu.gcr.io
+                - alexmorreale.privatereg.net
+          username:
+            type: string
+            description: |
+              Name of the user you want to use to connect to your private
+              registry. For external gcr.io, you will use the `_json_key`.
+
+              Examples:
+                - alexmorreale
+                - alex@pfc.com
+                - _json_key
+          password:
+            type: string
+            description: |
+              Password of the user you want to use to connect to your private
+              registry.
+
+              Examples:
+                - plaintextpassword
+                - abc123SECRETzyx098
+
+              For gcr.io registries the password will be a big JSON blob for a
+              Google cloud service account, it should look something like below.
+                            
+              ```yaml
+              password: |-
+                {
+                  "type": "service_account",
+                  "project_id": "jupyter-se",
+                  "private_key_id": "f2ba09118a8d3123b3321bd9a7d6d0d9dc6fdb85",
+                  ...
+                }
+              ```
+
+              Learn more in [this
+              guide](http://docs.heptio.com/content/private-registries/pr-gcr.html).
+      image:
+        type: object
+        description: |
+          Set custom image name / tag for the hub pod.
+
+          Use this to customize which hub image is used. Note that you must use a version of
+          the hub image that was bundled with this particular version of the helm-chart - using
+          other images might not work.
+        properties:
+          name:
+            type: string
+            description: |
+              Name of the image, without the tag.
+
+              ```
+              # example names
+              yuvipanda/wikimedia-hub
+              gcr.io/my-project/my-hub
+              ```
+          tag:
+            type: string
+            description: |
+              The tag of the image to pull.
+              
+              This is the value after the `:` in your full image name.
+
+              ```
+              # example tags
+              v1.11.1
+              zhy270a
+              ```
+      db:
+        type: object
+        properties:
+          pvc:
+            type: object
+            description: |
+              Customize the Persistent Volume Claim used when `hub.db.type` is `sqlite-pvc`.
+            properties:
+              annotations:
+                type: object
+                description: |
+                  Annotations to apply to the PVC containing the sqlite database.
+
+                  See [the Kubernetes
+                  documentation](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
+                  for more details about annotations.
+              selector:
+                type: object
+                description: |
+                  Label selectors to set for the PVC containing the sqlite database.
+
+                  Useful when you are using a specific PV, and want to bind to
+                  that and only that.
+
+                  See [the Kubernetes
+                  documentation](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims)
+                  for more details about using a label selector for what PV to
+                  bind to.
+              storage:
+                type: string
+                description: |
+                  Size of disk to request for the database disk.
+      labels:
+        type: object
+        description: |
+          Extra labels to add to the hub pod.
+
+          See the [Kubernetes docs](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/)
+          to learn more about labels.
+      initContainers:
+        type: list
+        description: |
+          list of initContainers to be run with hub pod. See [Kubernetes Docs](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/)
+          
+          ```yaml
+          hub:
+            initContainers:
+              - name: init-myservice
+                image: busybox:1.28
+                command: ['sh', '-c', 'command1']
+              - name: init-mydb
+                image: busybox:1.28
+                command: ['sh', '-c', 'command2']
+          ```
+      extraEnv:
+        type: object
+        description: |
+          Extra environment variables that should be set for the hub pod.
+
+          ```yaml
+          hub:
+            extraEnv:
+              MY_ENV_VARS_NAME: "my env vars value"
+          ```
+
+          **NOTE**: We still support this field being a list of
+          [EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.11/#envvar-v1-core)
+          objects as well.
+
+          These are usually used in two circumstances:
+            - Passing parameters to some custom code specified with `extraConfig`
+            - Passing parameters to an authenticator or spawner that can be directly customized
+              by environment variables (rarer)
+      uid:
+        type: integer
+        minimum: 0
+        description:
+          The UID the hub process should be running as.
+
+          Use this only if you are building your own image & know that a user with this uid
+          exists inside the hub container! Advanced feature, handle with care!
+
+          Defaults to 1000, which is the uid of the `jovyan` user that is present in the
+          default hub image.
+      fsGid:
+        type: integer
+        minimum: 0
+        description:
+          The gid the hub process should be using when touching any volumes mounted.
+
+          Use this only if you are building your own image & know that a group with this gid
+          exists inside the hub container! Advanced feature, handle with care!
+
+          Defaults to 1000, which is the gid of the `jovyan` user that is present in the
+          default hub image.
+      service:
+        type: object
+        description: |
+          Object to configure the service the JupyterHub will be exposed on by the Kubernetes server.
+        properties:
+          type:
+            type: string
+            enum:
+              - ClusterIP
+              - NodePort
+              - LoadBalancer
+              - ExternalName
+            description: |
+              The Kubernetes ServiceType to be used.
+
+              The default type is `ClusterIP`.
+              See the [Kubernetes docs](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types)
+              to learn more about service types.
+          loadBalancerIP:
+            type: string
+            description: |
+              The public IP address the hub service should be exposed on.
+
+              This sets the IP address that should be used by the LoadBalancer for exposing the hub service.
+              Set this if you want the hub service to be provided with a fixed external IP address instead of a dynamically acquired one.
+              Useful to ensure a stable IP to access to the hub with, for example if you have reserved an IP address in your network to communicate with the JupyterHub.
+
+              To be provided like:
+              ```
+              hub:
+                service:
+                  loadBalancerIP: xxx.xxx.xxx.xxx
+              ```
+          ports:
+            type: object
+            description: |
+              Object to configure the ports the hub service will be deployed on.
+            properties:
+              nodePort:
+                type: integer
+                description: |
+                  The nodePort to deploy the hub service on.
+          annotations:
+            type: object
+            description: |
+              Kubernetes annotations to apply to the hub service.
+      pdb:
+        type: object
+        description: |
+          Set the Pod Disruption Budget for the hub pod.
+
+          See [the Kubernetes
+          documentation](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/)
+          for more details about disruptions.
+        properties:
+          enabled:
+            type: boolean
+            description: |
+              Whether PodDisruptionBudget is enabled for the hub pod.
+          minAvailable:
+            type: integer
+            description: |
+              Minimum number of pods to be available during the voluntary disruptions.
+
+  proxy:
+    type: object
+    properties:
+      service:
+        type: object
+        description: |
+          Object to configure the service the JupyterHub's proxy will be exposed on by the Kubernetes server.
+        properties:
+          type: 
+            type: string
+            enum:
+              - ClusterIP
+              - NodePort
+              - LoadBalancer
+              - ExternalName
+            description: |
+              See `hub.service.type`.
+          labels:
+            type: object
+            description: |
+              Extra labels to add to the proxy service.
+
+              See the [Kubernetes docs](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/)
+              to learn more about labels.
+          annotations:
+            type: object
+            description: |
+              Annotations to apply to the service that is exposing the proxy.
+
+              See [the Kubernetes
+              documentation](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
+              for more details about annotations.
+          nodePorts:
+            type: object
+            description: |
+              Object to set NodePorts to expose the service on for http and https.
+
+              See [the Kubernetes
+              documentation](https://kubernetes.io/docs/concepts/services-networking/service/#nodeport)
+              for more details about NodePorts.
+            properties:
+              http:
+                type: integer
+                description: |
+                  The HTTP port the proxy-public service should be exposed on.
+              https:
+                type: integer
+                description: |
+                  The HTTPS port the proxy-public service should be exposed on.
+          loadBalancerIP:
+            type: string
+            description: |
+              See `hub.service.loadBalancerIP`
+      https:
+        type: object
+        description: |
+          Object for customizing the settings for HTTPS used by the JupyterHub's proxy.
+          For more information on configuring HTTPS for your JupyterHub, see the [HTTPS section in our security guide](https://zero-to-jupyterhub.readthedocs.io/en/stable/security.html?highlight=security#https)
+        properties:
+          enabled:
+            type: boolean
+            description: |
+              Indicator to set whether HTTPS should be enabled or not on the proxy. Defaults to `true` if the https object is provided.
+          type:
+            type: string
+            enum:
+              - letsencrypt
+              - manual
+              - offload
+              - secret
+            description: |
+              The type of HTTPS encryption that is used.
+              Decides on which ports and network policies are used for communication via HTTPS. Setting this to `secret` sets the type to manual HTTPS with a secret that has to be provided in the `https.secret` object.
+              Defaults to `letsencrypt`.
+          letsencrypt:
+            type: object
+            properties:
+              contactEmail:
+                type: string
+                description: |
+                  The contact email to be used for automatically provisioned HTTPS certificates by Let's Encrypt. For more information see [Set up automatic HTTPS](https://zero-to-jupyterhub.readthedocs.io/en/stable/security.html?highlight=security#set-up-automatic-https).
+                  Required for automatic HTTPS.
+          manual:
+            type: object
+            description: |
+              Object for providing own certificates for manual HTTPS configuration. To be provided when setting `https.type` to `manual`.
+              See [Set up manual HTTPS](https://zero-to-jupyterhub.readthedocs.io/en/stable/security.html?highlight=security#set-up-manual-https)
+            properties:
+              key:
+                type: string
+                description: |
+                  The RSA private key to be used for HTTPS.
+                  To be provided in the form of
+
+                  ```
+                  key: |
+                    -----BEGIN RSA PRIVATE KEY-----
+                    ...
+                    -----END RSA PRIVATE KEY-----
+                  ```
+              cert:
+                type: string
+                description: |
+                  The certificate to be used for HTTPS.
+                  To be provided in the form of
+
+                  ```
+                  cert: |
+                    -----BEGIN CERTIFICATE-----
+                    ...
+                    -----END CERTIFICATE-----
+                  ```
+          secret:
+            type: object
+            description: |
+              Secret to be provided when setting `https.type` to `secret`.
+            properties:
+              name:
+                type: string
+                description: |
+                  Name of the secret
+              key:
+                type: string
+                description: |
+                  Path to the private key to be used for HTTPS. 
+                  Example: `'tls.key'`
+              crt:
+                type: string
+                description: |
+                  Path to the certificate to be used for HTTPS. 
+                  Example: `'tls.crt'`
+          hosts:
+            type: list
+            description: |
+              You domain in list form.
+              Required for automatic HTTPS. See [Set up automatic HTTPS](https://zero-to-jupyterhub.readthedocs.io/en/stable/security.html?highlight=security#set-up-automatic-https).
+              To be provided like:
+              ```
+              hosts:
+                - <your-domain-name>
+              ```   
+      pdb:
+        type: object
+        description: |
+          Set the Pod Disruption Budget for the proxy pod.
+
+          See [the Kubernetes
+          documentation](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/)
+          for more details about disruptions.
+        properties:
+          enabled:
+            type: boolean
+            description: |
+              Whether PodDisruptionBudget is enabled for the proxy pod.
+          minAvailable:
+            type: integer
+            description: |
+              Minimum number of pods to be available during the voluntary disruptions.
+    required:
+      - secretToken
+
+  singleuser:
+    type: object
+    description: |
+      Options for customizing the environment that is provided to the users after they log in.
+    properties:
+  
+  ingress:
+    type: object
+    properties:
+      enabled:
+        type: boolean
+        description: |
+          Enable the creation of a Kubernetes Ingress to proxy-public service.
+
+          See [Advanced Topics — Zero to JupyterHub with Kubernetes 0.7.0 documentation]
+          (https://zero-to-jupyterhub.readthedocs.io/en/stable/advanced.html#ingress)
+          for more details.
+      annotations:
+        type: object
+        description: |
+          Annotations to apply to the Ingress.
+
+          See [the Kubernetes
+          documentation](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
+          for more details about annotations.
+      hosts:
+        type: list
+        description: |
+          List of hosts to route requests to the proxy.
+      pathSuffix:
+        type: string
+        description: |
+          Suffix added to Ingress's routing path pattern.
+
+          Specify `*` if your ingress matches path by glob pattern.
+      tls:
+        type: list
+        description: |
+          TLS configurations for Ingress.
+
+          See [the Kubernetes
+          documentation](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls)
+          for more details about annotations.
+
+  custom:
+    type: object
+    description: |
+      Additional values to pass to the Hub.
+      JupyterHub will not itself look at these,
+      but you can read values in your own custom config via `hub.extraConfig`.
+      For example:
+
+      ```yaml
+      custom:
+        myHost: "https://example.horse"
+      hub:
+        extraConfig:
+          myConfig.py: |
+            c.MyAuthenticator.host = get_config("custom.myHost")
+      ```

@@ -1,0 +1,17 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: hub-config
+  labels:
+    {{- include "jupyterhub.labels" . | nindent 4 }}
+data:
+{{- $values := pick .Values "custom" "hub" "singleuser" "mlhub" }}
+{{- /* trim secret values. Update here if new secrets are added! */ -}}
+{{- /* make a copy of values.auth to avoid modifying the original */ -}}
+{{- $_ := set $values "hub" (omit $values.hub "extraEnv") -}}
+{{- $_ := set $values "mlhub" (omit $values.mlhub "env") -}}
+{{- /* passthrough subset of Chart / Release */ -}}
+{{- $_ := set $values "Chart" (dict "Name" .Chart.Name "Version" .Chart.Version) }}
+{{- $_ := set $values "Release" (pick .Release "Name" "Namespace" "Service") }}
+  values.yaml: |
+    {{- $values | toYaml | nindent 4 }}

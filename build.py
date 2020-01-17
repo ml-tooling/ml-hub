@@ -85,3 +85,24 @@ if args.deploy:
     if "SNAPSHOT" not in args.version:
     # do not push SNAPSHOT builds as latest version
         call("docker push " + remote_latest_image)
+
+# Create the Helm chart resource
+import fileinput
+
+chart_yaml = "./helmchart/mlhub/Chart.yaml"
+values_yaml = "./helmchart/mlhub/values.yaml"
+with fileinput.FileInput(chart_yaml, inplace=True, backup='.bak') as file:
+    for line in file:
+        print(line.replace("$VERSION", str(args.version)), end='')
+
+with fileinput.FileInput(values_yaml, inplace=True, backup='.bak') as file:
+    for line in file:
+        print(line.replace("$VERSION", str(args.version)), end='')
+
+try:
+    call("helm package ./helmchart/mlhub -d helmchart")
+except:
+    print("There was a problem with the helm command")
+
+os.replace(f"{chart_yaml}.bak", chart_yaml)
+os.replace(f"{values_yaml}.bak", values_yaml)
