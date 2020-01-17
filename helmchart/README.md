@@ -21,3 +21,7 @@ You can then deploy the chart via `helm upgrade --install mlhub packaged-chart.t
 The `config.yaml` can be used to overrride default deployment values, the `userConfig` can be used to configure JupyterHub and the Spawner. 
 
 For more details, check out the main [readme](https://github.com/ml-tooling/ml-hub).
+
+## Config
+
+You find the default values for the deployment in the *mlhub/values.yaml* file. Some values should be self-explanatory; if not we encourage you to have a look at the chart files or at the *[Zero to JupyterHub K8s](https://github.com/jupyterhub/zero-to-jupyterhub-k8s)* documentation, on which our setup is based.

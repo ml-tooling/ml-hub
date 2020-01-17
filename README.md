@@ -52,7 +52,11 @@ MLHub is based on [JupyterHub](https://github.com/jupyterhub/jupyterhub) with co
 
 Most parts will be identical to the configuration of JupyterHub 1.0.0. One of the things done differently is that ssl will not be activated on proxy or hub-level, but on our nginx proxy.
 
-### Start an instance via Docker
+### Quick Start
+
+Following commands will start the hub with the default config.
+
+#### Start an instance via Docker
 
 ```bash
 docker run \
@@ -66,7 +70,7 @@ To persist the hub data, such as started workspaces and created users, mount a d
 Any given name (`--name`) will be overruled by the environment variable `HUB_NAME`.
 
 
-### Start an instance via Kubernetes
+#### Start an instance via Kubernetes
 
 Via Helm:
 
@@ -163,7 +167,9 @@ In Docker, mount a custom config like `-v /jupyterhub_user_config:/resources/jup
 
 When using Helm, you can pass the configuration to the installation command via `--set-file userConfig=./jupyterhub_user_config.py`. So the complete command could look like `helm upgrade --install mlhub mlhub-chart-1.0.1.tgz --namespace mlhub --set-file userConfig=./jupyterhub_user_config.py`. Have a look at the [KubeSpawner properties](https://jupyterhub-kubespawner.readthedocs.io/en/latest/spawner.html) to see what can be configured for the Spawner.
 
-Additionally to the `jupyterhub_user_config.py`, which can be used to configure JupyterHub or the KubeSpawner, you can provide a `config.yaml` where you can make some Kubernetes-deployment specific configurations.
+Additionally to the `jupyterhub_user_config.py`, which can be used to configure JupyterHub or the KubeSpawner, you can provide a `config.yaml` where you can make some Kubernetes-deployment specific configurations. Check out the *helmchart/* directory for more information.
+
+You can think of it like this: everything that has to be configured for the deployment itself, such as environment variables or volumes for the *hub / proxy* itself, goes to the `config.yaml`. Everything related to JupyterHub's way of working such as how to authenticate or what the spawned user pods will mount goes to the `jupyterhub_user_config.py`.
 
 > ℹ️ _Some JupyterHub configurations cannot be set in the `jupyterhub_user_config.py` as they have to be shared between services and, thus, have to be known during deployment. Instead, if you want to specify them, you have to do it in the `config.yaml` (see below)._
 

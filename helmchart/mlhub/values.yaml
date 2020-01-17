@@ -136,8 +136,6 @@ scheduling:
     nodeAffinity:
       matchNodePurpose: prefer
 
-
-
 ingress:
   enabled: false
   annotations: {}
