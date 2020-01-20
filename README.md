@@ -232,10 +232,10 @@ proxy:
         -----END CERTIFICATE-----
 ```
 
-</details>
-
-If you use a (cloud provider) LoadBalancer in your cluster where SSL is already terminated, just do not enable SSL on Hub-level and point the LoadBalancer regularly to the Hub's port.
+If you use a (cloud provider) LoadBalancer in your cluster where SSL is already terminated, just do not enable SSL on Hub-level and point the LoadBalancer regularly to the Hub's port.  
 If you do not have a certificate, for example from your cloud provider, you can have a look at the [Let's Encrypt project](https://letsencrypt.org/getting-started/) for how to generate one. For that, your domain must be publicly reachable. It is not built-in the MLHub project, but one idea would be to have a pod that creates & renews certificates for your domain, copying them into the proxy pod and re-starting nginx there.
+
+</details>
 
 ### Spawner
 
