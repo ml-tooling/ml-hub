@@ -348,7 +348,7 @@ helm upgrade \
 mlhub:
   env:
     SSL_ENABLED: true
-    AAD_TENANT_ID: "<azure-tenant-id"
+    AAD_TENANT_ID: "<azure-tenant-id>"
 
 proxy:
   https:
