@@ -234,6 +234,9 @@ proxy:
 
 </details>
 
+If you use a (cloud provider) LoadBalancer in your cluster where SSL is already terminated, just do not enable SSL on Hub-level and point the LoadBalancer regularly to the Hub's port.
+If you do not have a certificate, for example from your cloud provider, you can have a look at the [Let's Encrypt project](https://letsencrypt.org/getting-started/) for how to generate one. For that, your domain must be publicly reachable. It is not built-in the MLHub project, but one idea would be to have a pod that creates & renews certificates for your domain, copying them into the proxy pod and re-starting nginx there.
+
 ### Spawner
 
 We override [DockerSpawner](https://github.com/ml-tooling/ml-hub/blob/master/resources/mlhubspawner/mlhubspawner/mlhubspawner.py) and [KubeSpawner](https://github.com/ml-tooling/ml-hub/blob/master/resources/mlhubspawner/mlhubspawner/mlhubkubernetesspawner.py) for Docker and Kubernetes, respectively. We do so to add convenient labels and environment variables. Further, we return a custom option form to configure the resouces of the workspaces. The overriden Spawners can be configured the same way as the base Spawners as stated in the [Configuration Section](#configuration).
