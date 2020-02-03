@@ -27,6 +27,10 @@
 
 MLHub is based on [JupyterHub](https://github.com/jupyterhub/jupyterhub) with complete focus on Docker and Kubernetes. MLHub allows to create and manage multiple [workspaces](https://github.com/ml-tooling/ml-workspace), for example to distribute them to a group of people or within a team. The standard configuration allows a setup within seconds.
 
+---
+
+<br>
+
 ## Highlights
 
 - 💫 Create, manage, and access Jupyter notebooks. Use it as an admin to distribute workspaces to other users, use it in self-service mode, or both.
@@ -35,12 +39,20 @@ MLHub is based on [JupyterHub](https://github.com/jupyterhub/jupyterhub) with co
 - 🎛 Tunnel SSH connections to workspace containers.
 - 🐳 Focused on Docker and Kubernetes with enhanced functionality.
 
+---
+
+<br>
+
 ## Overview in a Nutshell
 
 - MLHub can be configured like JupyterHub with a normal JupyterHub configuration, with minor adjustments in the Kubernetes scenario.
 - The documentation provides an overview of how to use and configure it in Docker-local and Kubernetes mode.
 - More information about the Helm chart resources for Kubernetes can be found [here](https://github.com/ml-tooling/ml-hub/tree/master/helmchart).
 - We created two custom Spawners that are based on the official [DockerSpawner](https://github.com/jupyterhub/dockerspawner) and [KubeSpawner](https://github.com/jupyterhub/kubespawner) and, hence, support their configurations set via the JupyterHub config.
+
+---
+
+<br>
 
 ## Getting Started
 
@@ -265,6 +277,10 @@ valuable if it's shared publicly so that more people can benefit from it.
 | 👩‍💻 **Usage Questions**   |  <a href="https://stackoverflow.com/questions/tagged/ml-tooling" title="Open Question on Stackoverflow"><img src="https://img.shields.io/badge/stackoverflow-ml--tooling-orange.svg"></a> <a href="https://gitter.im/ml-tooling/ml-hub" title="Chat on Gitter"><img src="https://badges.gitter.im/ml-tooling/ml-hub.svg"></a> |
 | 🗯 **General Discussion** | <a href="https://gitter.im/ml-tooling/ml-hub" title="Chat on Gitter"><img src="https://badges.gitter.im/ml-tooling/ml-hub.svg"></a>  <a href="https://twitter.com/mltooling" title="ML Tooling on Twitter"><img src="https://img.shields.io/twitter/follow/mltooling.svg?style=social"></a>
 
+---
+
+<br>
+
 ## Features
 
 We have the three following scenarios in mind for the hub and want to point them out as a guideline. These three scenarios are thought of as an inspiration and are based on the default configuration by using [native-authenticator](https://github.com/ml-tooling/nativeauthenticator) as the hub authenticator. If you start the hub with a different authenticator or change other settings, you might want to or have to do things differently.
@@ -314,6 +330,10 @@ The service has two endpoints which can be reached under the Hub service url `/s
 - `GET /services/cleanup-service/users`: This endpoint is currently doing anything only in Docker-local mode. There, it will check for resources of deleted users, so users who are not in the JupyterHub database anymore, and delete them. This includes containers, networks, and volumes. This is done by looking for labeled Docker resources that point to containers started by hub and belonging to the specific users.
 
 - `GET /services/cleanup-service/expired`: When starting a named workspace, an expiration date can be assigned to it. This endpoint will delete all containers that are expired. The respective named server is deleted from the JupyterHub database and also the Docker/Kubernetes resource is deleted.
+
+---
+
+<br>
 
 ## FAQ
 
@@ -425,6 +445,24 @@ Via the START\_* environment variables you can define what is started within the
 </table>
 
 </details>
+
+---
+
+<br>
+
+## Known Issues
+
+<details>
+
+<summary><b>Username renaming & collisions</b> (click to expand...)</summary>
+
+In the default jupyterhub config MLHub starts with, all non-numerical and non-digit characters are replaced in provided usernames. This is to prevent name collisions between named servers of a user and different username - e.g. there would be a collision between the user *admin* who might have a named server called *test*, which results in *admin-test* and a user with the name *admin-test*. Hence, the user with the name *admin-test* is renamed to *admintest*. If this is not sufficient for your use-case or this renaming results in different issues, have a look at the function `custom_normalize_username` in the default `jupyterhub_config.py` file. 
+
+</details>
+
+---
+
+<br>
 
 ## Contribution
 
