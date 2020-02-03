@@ -106,25 +106,29 @@ RUN \
 ### INCUBATION ZONE ###
 
 # Kubernetes Support
-ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/z2jh.py /usr/local/lib/python3.6/dist-packages/z2jh.py
 ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/cull_idle_servers.py /usr/local/bin/cull_idle_servers.py
+ADD resources/kubernetes/jupyterhub_chart_config.py $_RESOURCES_PATH/jupyterhub_chart_config.py
 # Copy the jupyterhub config that has a lot of options to be configured
-ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/jupyterhub_config.py $_RESOURCES_PATH/kubernetes/jupyterhub_chart_config.py
-ADD https://raw.githubusercontent.com/ml-tooling/zero-to-mlhub-k8s/master/images/hub/requirements.txt /tmp/requirements.txt
 
-RUN PYCURL_SSL_LIBRARY=openssl pip3 install --no-cache-dir \
-         -r /tmp/requirements.txt && \
-         chmod u+rx /usr/local/bin/cull_idle_servers.py && \
-         chmod u+rx /usr/local/lib/python3.6/dist-packages/z2jh.py && \
-         # Cleanup
-         clean-layer.sh
+RUN chmod u+rx /usr/local/bin/cull_idle_servers.py 
 
-RUN pip3 install oauthenticator psutil
+RUN pip3 install oauthenticator psutil yamlreader pyjwt \
+         # https://github.com/jupyterhub/kubespawner
+         # https://pypi.org/project/jupyterhub-kubespawner
+         jupyterhub-kubespawner==0.11.* \
+         # https://github.com/kubernetes-client/python
+         # https://pypi.org/project/kubernetes
+         kubernetes==10.0.* \
+         # https://pypi.org/project/pycurl/
+         pycurl==7.43.0.*
 RUN apt-get update && apt-get install -y pcregrep && clean-layer.sh
 
 ### END INCUBATION ZONE ###
 
 ### CONFIGURATION ###
+
+ARG ARG_HUB_VERSION="unknown"
+ENV HUB_VERSION=$ARG_HUB_VERSION
 
 COPY resources/nginx.conf /etc/nginx/nginx.conf
 COPY resources/scripts $_RESOURCES_PATH/scripts
@@ -135,6 +139,7 @@ COPY resources/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/tem
 COPY resources/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/admin.html
 COPY resources/jupyterhub-mod/ssh-dialog-snippet.html /usr/local/share/jupyterhub/templates/ssh-dialog-snippet.html
 COPY resources/jupyterhub-mod/info-dialog-snippet.html /usr/local/share/jupyterhub/templates/info-dialog-snippet.html
+COPY resources/jupyterhub-mod/version-number-snippet.html /usr/local/share/jupyterhub/templates/version-number-snippet.html
 COPY resources/jupyterhub-mod/jsonpresenter /usr/local/share/jupyterhub/static/components/jsonpresenter/
 COPY resources/jupyterhub-mod/cleanup-service.py /resources/cleanup-service.py
 
@@ -143,6 +148,10 @@ RUN \
    mkdir $_SSL_RESOURCES_PATH && chmod ug+rwx $_SSL_RESOURCES_PATH && \
    chmod -R ug+rxw $_RESOURCES_PATH/scripts && \
    chmod ug+rwx $_RESOURCES_PATH/docker-entrypoint.sh
+
+RUN \
+   # Replace the variable with the actual value. There seems to be no direct functionality in ninja-templates
+   sed -i "s/\$HUB_VERSION/$HUB_VERSION/g" /usr/local/share/jupyterhub/templates/version-number-snippet.html
 
 # Set python3 to default python. Needed for the ssh-proxy scripts
 RUN \
@@ -160,7 +169,8 @@ ENV \
    EXECUTION_MODE="local" \
    HUB_NAME="mlhub" \ 
    CLEANUP_INTERVAL_SECONDS=3600 \
-   DYNAMIC_WHITELIST_ENABLED="false"
+   DYNAMIC_WHITELIST_ENABLED="false" \
+   IS_CLEANUP_SERVICE_ENABLED="true"
 
 ### END CONFIGURATION ###
 
@@ -168,8 +178,6 @@ ENV \
 
 ARG ARG_BUILD_DATE="unknown"
 ARG ARG_VCS_REF="unknown"
-ARG ARG_HUB_VERSION="unknown"
-ENV HUB_VERSION=$ARG_HUB_VERSION
 
 # Overwrite & add common labels
 LABEL \

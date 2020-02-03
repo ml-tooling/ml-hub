@@ -28,7 +28,7 @@ original_normalize_username = Authenticator.normalize_username
 def custom_normalize_username(self, username):
     username = original_normalize_username(self, username)
     more_than_one_forbidden_char = False
-    for forbidden_username_char in [" ", ",", ";", ".", "-", "@"]:
+    for forbidden_username_char in [" ", ",", ";", ".", "-", "@", "_"]:
         # Replace special characters with a non-special character. Cannot just be empty, like "", because then it could happen that two distinct user names are transformed into the same username.
         # Example: "foo, bar" and "fo, obar" would both become "foobar".
         replace_char = "0"
@@ -45,14 +45,17 @@ Authenticator.normalize_username = custom_normalize_username
 
 original_check_whitelist = Authenticator.check_whitelist
 def dynamic_check_whitelist(self, username, authentication=None):
-    dynamic_whitelist_file = "/resources/dynamic_whitelist.txt"
+    dynamic_whitelist_file = "/resources/users/dynamic_whitelist.txt"
 
     if os.getenv("DYNAMIC_WHITELIST_ENABLED", "false") == "true":
+        # TODO: create the file and warn the user that the user has to go into the hub pod and modify it there
         if not os.path.exists(dynamic_whitelist_file):
             logger.error("The dynamic white list has to be mounted to '{}'. Use standard JupyterHub whitelist behavior.".format(dynamic_whitelist_file))
         else:  
             with open(dynamic_whitelist_file, "r") as f:
-                whitelisted_users = f.readlines()
+                #whitelisted_users = f.readlines()
+                # rstrip() will remove trailing whitespaces or newline characters
+                whitelisted_users = [line.rstrip() for line in f]
                 return username.lower() in whitelisted_users
     
     return original_check_whitelist(self, username, authentication)
@@ -99,7 +102,6 @@ c.Spawner.port = int(os.getenv("DEFAULT_WORKSPACE_PORT", 8080))
 
 # Set default environment variables used by our ml-workspace container
 default_env = {"AUTHENTICATE_VIA_JUPYTER": "true", "SHUTDOWN_INACTIVE_KERNELS": "true"}
-c.Spawner.environment = default_env
 
 # Workaround to prevent api problems
 #c.Spawner.will_resume = True
@@ -141,8 +143,8 @@ c.JupyterHub.authenticator_class = NATIVE_AUTHENTICATOR_CLASS # override in your
     # > c.DockerSpawner.extra_create_kwargs.update({'labels': {'foo': 'bar'}})
 # See https://traitlets.readthedocs.io/en/stable/config.html#configuration-files-inheritance
 load_subconfig("{}/jupyterhub_user_config.py".format(os.getenv("_RESOURCES_PATH")))
-
-
+c.Spawner.environment = get_or_init(c.Spawner.environment, dict)
+c.Spawner.environment.update(default_env)
 
 service_environment = {
     ENV_NAME_HUB_NAME: ENV_HUB_NAME,
@@ -153,18 +155,15 @@ service_environment = {
 # In Kubernetes mode, load the Kubernetes Jupyterhub config that can be configured via a config.yaml.
 # Those values will override the values set above, as it is loaded afterwards.
 if ENV_EXECUTION_MODE == utils.EXECUTION_MODE_KUBERNETES:
-    load_subconfig("{}/kubernetes/jupyterhub_chart_config.py".format(os.getenv("_RESOURCES_PATH")))
+    # NOTE: only load when deployed via helm chart and not manual Kubernetes?
+    load_subconfig("{}/jupyterhub_chart_config.py".format(os.getenv("_RESOURCES_PATH")))
 
     c.JupyterHub.spawner_class = 'mlhubspawner.MLHubKubernetesSpawner'
     c.KubeSpawner.pod_name_template = c.Spawner.name_template
 
-    from z2jh import set_config_if_not_none
-    set_config_if_not_none(c.KubeSpawner, 'workspace_images', 'singleuser.workspaceImages')
-
-    c.KubeSpawner.environment = get_or_init(c.KubeSpawner.environment, dict)
-    # if not isinstance(c.KubeSpawner.environment, dict):
-    #     c.KubeSpawner.environment = {}
-    c.KubeSpawner.environment.update(default_env)
+    # Consider the case where the user-config contains c.KubeSpawner.environment instead of c.Spawner.environment
+    # c.KubeSpawner.environment = get_or_init(c.KubeSpawner.environment, dict)
+    # c.Spawner.environment.update(c.KubeSpawner.environment)
 
     # For cleanup-service
     ## Env variables that are used by the Python Kubernetes library to load the incluster config
@@ -174,15 +173,15 @@ if ENV_EXECUTION_MODE == utils.EXECUTION_MODE_KUBERNETES:
         SERVICE_HOST_ENV_NAME: os.getenv(SERVICE_HOST_ENV_NAME), 
         SERVICE_PORT_ENV_NAME: os.getenv(SERVICE_PORT_ENV_NAME)
     })
-    service_host = "hub"
+    service_host = "127.0.0.1" #"hub"
     
 
 elif ENV_EXECUTION_MODE == utils.EXECUTION_MODE_LOCAL:
     # shm_size can only be set for Docker, not Kubernetes (see https://stackoverflow.com/questions/43373463/how-to-increase-shm-size-of-a-kubernetes-container-shm-size-equivalent-of-doc)
     c.Spawner.extra_host_config = { 'shm_size': '256m' }
 
-    client_kwargs = {**get_or_init(c.DockerSpawner.client_kwargs, dict), **get_or_init(c.MLHubDockerSpawner.client_kwargs, dict)}
-    tls_config = {**get_or_init(c.DockerSpawner.tls_config, dict), **get_or_init(c.MLHubDockerSpawner.tls_config, dict)}
+    client_kwargs = {**get_or_init(c.Spawner.client_kwargs, dict)} # {**get_or_init(c.DockerSpawner.client_kwargs, dict), **get_or_init(c.MLHubDockerSpawner.client_kwargs, dict)}
+    tls_config = {**get_or_init(c.Spawner.tls_config, dict)} # {**get_or_init(c.DockerSpawner.tls_config, dict), **get_or_init(c.MLHubDockerSpawner.tls_config, dict)}
 
     docker_client = utils.init_docker_client(client_kwargs, tls_config)
     try:
@@ -196,6 +195,10 @@ elif ENV_EXECUTION_MODE == utils.EXECUTION_MODE_LOCAL:
     # For cleanup-service
     service_environment.update({"DOCKER_CLIENT_KWARGS": json.dumps(client_kwargs), "DOCKER_TLS_CONFIG": json.dumps(tls_config)})
     service_host = "127.0.0.1"
+
+    # Consider the case where the user-config contains c.DockerSpawner.environment instead of c.Spawner.environment
+    # c.DockerSpawner.environment = get_or_init(c.DockerSpawner.environment, dict)
+    # c.Spawner.environment.update(c.DockerSpawner.environment)
     #c.MLHubDockerSpawner.hub_name = ENV_HUB_NAME
 
 # Add nativeauthenticator-specific templates
@@ -207,12 +210,14 @@ if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
     #     c.JupyterHub.template_paths = []
     c.JupyterHub.template_paths.append("{}/templates/".format(os.path.dirname(nativeauthenticator.__file__)))
 
-c.JupyterHub.services = [
-    {
-        'name': 'cleanup-service',
-        'admin': True,
-        'url': 'http://{}:9000'.format(service_host),
-        'environment': service_environment,
-        'command': [sys.executable, '/resources/cleanup-service.py']
-    }
-]
+# TODO: add env variable to readme
+if (os.getenv("IS_CLEANUP_SERVICE_ENABLED", "true") == "true"):
+    c.JupyterHub.services = [
+        {
+            'name': 'cleanup-service',
+            'admin': True,
+            'url': 'http://{}:9000'.format(service_host),
+            'environment': service_environment,
+            'command': [sys.executable, '/resources/cleanup-service.py']
+        }
+    ]

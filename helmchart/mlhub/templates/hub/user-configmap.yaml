@@ -1,0 +1,9 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: hub-user-config
+  labels:
+    {{- include "jupyterhub.labels" . | nindent 4 }}
+data:
+  jupyterhub_user_config.py: |
+    {{- .Values.userConfig | nindent 4 }}

@@ -49,7 +49,8 @@
             let row = $(self).parent();
             let serverName = row.find(".new-server-name").val();
 
-            if (serverName === '') {
+            // the server name must not be empty and must not contain DNS-incompatible characters
+            if (serverName === '' || !/^[a-zA-Z0-9\-]+$/.test(serverName)) {
               alert('Server name cannot be empty');
               return;
             }
@@ -170,5 +171,7 @@ $(document).ready(() => {
 {% include 'ssh-dialog-snippet.html' %}
 
 {% include 'info-dialog-snippet.html' %}
+
+{% include 'version-number-snippet.html' %}
 
 {% endblock %}

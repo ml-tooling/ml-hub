@@ -1,0 +1,29 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: jupyterhub
+  labels:
+    {{- include "jupyterhub.labels" . | nindent 4 }}
+  {{- if .Values.ingress.annotations }}
+  annotations:
+    {{- range $key, $value := .Values.ingress.annotations }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
+spec:
+  rules:
+    {{- range $host := .Values.ingress.hosts }}
+    - host: {{ $host | quote }}
+      http:
+        paths:
+          - path: {{ $.Values.mlhub.baseUrl }}{{ $.Values.ingress.pathSuffix }}
+            backend:
+              serviceName: proxy-public
+              servicePort: 80
+    {{- end }}
+  {{- if .Values.ingress.tls }}
+  tls:
+    {{- .Values.ingress.tls | toYaml | trimSuffix "\n" | nindent 4 }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,144 @@
+custom: {}
+
+mlhub:
+  # NOTE: baseUrl has to be set to configure other services during deployment (together with proxy.secretToken only hub-configurations that have to be set here instead of jupyterhub-user config py)
+  baseUrl: /
+  secretToken: ''
+  debug: false
+  env:
+
+hub:
+  service:
+    type: ClusterIP
+    annotations: {}
+    ports:
+      nodePort:
+    loadBalancerIP:
+  initContainers: []
+  uid: 0
+  fsGid: 0
+  nodeSelector: {}
+  deploymentStrategy:
+    # sqlite-pvc backed hub requires Recreate strategy to work
+    type: Recreate
+    # This is required for upgrading to work
+    rollingUpdate:
+  db:
+    # type: sqlite-pvc
+    upgrade:
+    pvc:
+      annotations: {}
+      selector: {}
+      accessModes:
+        - ReadWriteOnce
+      storage: 1Gi
+      subPath:
+      storageClassName:
+  labels: {}
+  annotations: {}
+  extraEnv: {}
+  extraContainers: []
+  extraVolumes: []
+  extraVolumeMounts: []
+  image:
+    name: mltooling/ml-hub
+    tag: $VERSION
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+  imagePullSecret:
+    enabled: false
+    registry:
+    username:
+    email:
+    password:
+  pdb:
+    enabled: true
+    minAvailable: 1
+  networkPolicy:
+    enabled: false
+    egress:
+      - to:
+          - ipBlock:
+              cidr: 0.0.0.0/0
+
+rbac:
+  enabled: true
+
+proxy:
+  service:
+    type: LoadBalancer
+    labels: {}
+    annotations: {}
+    nodePorts:
+      http:
+      https:
+    loadBalancerIP:
+  chp:
+    image:
+      name: mltooling/ml-hub
+      tag: $VERSION
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+  labels: {}
+  nodeSelector: {}
+  pdb:
+    enabled: true
+    minAvailable: 1
+  https:
+    type: manual
+    #type: manual
+    manual:
+      key:
+      cert:
+    secret:
+      name: ''
+      key: cert.key
+      crt: cert.crt
+    hosts: []
+  networkPolicy:
+    enabled: false
+    egress:
+      - to:
+          - ipBlock:
+              cidr: 0.0.0.0/0
+  extraEnv:
+
+singleuser:
+  networkTools:
+    image:
+      name: jupyterhub/k8s-network-tools
+      tag: '0.8.2'
+  # https://zero-to-jupyterhub.readthedocs.io/en/latest/administrator/security.html#audit-cloud-metadata-server-access
+  cloudMetadata:
+    enabled: false
+    ip: 169.254.169.254
+  networkPolicy:
+    enabled: true
+    egress:
+    # Required egress is handled by other rules so it's safe to modify this
+      - to:
+          - ipBlock:
+              cidr: 0.0.0.0/0
+              except:
+                - 169.254.169.254/32
+
+scheduling:
+  podPriority:
+    enabled: false
+    globalDefault: false
+    defaultPriority: 0
+    userPlaceholderPriority: -10
+  corePods:
+    nodeAffinity:
+      matchNodePurpose: prefer
+
+ingress:
+  enabled: false
+  annotations: {}
+  hosts: []
+  pathSuffix: ''
+  tls: []
