@@ -173,7 +173,7 @@ if ENV_EXECUTION_MODE == utils.EXECUTION_MODE_KUBERNETES:
         SERVICE_HOST_ENV_NAME: os.getenv(SERVICE_HOST_ENV_NAME), 
         SERVICE_PORT_ENV_NAME: os.getenv(SERVICE_PORT_ENV_NAME)
     })
-    service_host = "hub"
+    service_host = "127.0.0.1" #"hub"
     
 
 elif ENV_EXECUTION_MODE == utils.EXECUTION_MODE_LOCAL:
