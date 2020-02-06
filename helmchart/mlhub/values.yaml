@@ -24,7 +24,7 @@ hub:
     # This is required for upgrading to work
     rollingUpdate:
   db:
-    # type: sqlite-pvc
+    type: "" # use "sqlite-pvc" to mount a PVC to the hub
     upgrade:
     pvc:
       annotations: {}
