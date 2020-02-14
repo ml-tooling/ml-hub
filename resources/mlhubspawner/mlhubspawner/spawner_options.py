@@ -2,13 +2,15 @@
 Functions to provide Jupyterhub Options forms for our custom spawners.
 """
 
+default_env_variables = ["AUTHENTICATE_VIA_JUPYTER", "SHUTDOWN_INACTIVE_KERNELS"]
+
 label_style = "width: 25%"
 input_style = "width: 75%"
 div_style = "margin-bottom: 16px"
 additional_info_style="margin-top: 4px; color: rgb(165,165,165); font-size: 12px;"
 optional_label = "<span style=\"font-size: 12px; font-weight: 400;\">(optional)</span>"
 
-def get_options_form(spawner, additional_cpu_info="", additional_memory_info="", additional_gpu_info="") -> str:
+def get_options_form(spawner, cpu_limit = "", mem_limit = "", env_variables = [], additional_cpu_info="", additional_memory_info="", additional_gpu_info="") -> str:
     """Return the spawner options screen"""
 
     # Only show spawner options for named servers (the default server should start with default values)
@@ -38,6 +40,15 @@ def get_options_form(spawner, additional_cpu_info="", additional_memory_info="",
     images_template = """
         <select name="defined_image" class="defined-images" required autofocus>{image_options}</select>
     """.format(image_options=image_options)
+    print(env_variables)
+    env_variables = "\n".join(f"{key}={env_variables[key]}" for key in env_variables if key.upper() not in default_env_variables)
+    if cpu_limit == None:
+        cpu_limit = ""
+    
+    if mem_limit == None:
+        mem_limit = ""
+    else:
+        mem_limit = mem_limit/1000/1000/1000
 
     # template = super()._default_options_form()
     return """
@@ -54,17 +65,17 @@ def get_options_form(spawner, additional_cpu_info="", additional_memory_info="",
         </div>
         <div style="{div_style}">
             <label style="{label_style}" for="cpu_limit">CPU Limit {optional_label}</label>
-            <input style="{input_style}" name="cpu_limit" placeholder="e.g. 8"></input>
+            <input style="{input_style}" name="cpu_limit" placeholder="e.g. 8" value={cpu_limit}></input>
             <div style="{additional_info_style}">{additional_cpu_info}</div>
         </div>
         <div style="{div_style}">
             <label style="{label_style}" for="mem_limit" title="{description_memory_limit}">Memory Limit in GB {optional_label}</label>
-            <input style="{input_style}" name="mem_limit" id="mem-limit" title="{description_memory_limit}" placeholder="e.g. 1, 2, 15, ..." oninput="{memory_input_listener}"></input>
+            <input style="{input_style}" name="mem_limit" id="mem-limit" title="{description_memory_limit}" placeholder="e.g. 1, 2, 15, ..." value={mem_limit} oninput="{memory_input_listener}"></input>
             <div style="{additional_info_style}">{additional_memory_info}</div>
         </div>
         <div style="{div_style}">
             <label style="{label_style}" for="env" title="{description_env}">Environment Variables {optional_label}</label>
-            <textarea style="{input_style}" name="env" title="{description_env}" placeholder="NAME=VALUE"></textarea>
+            <textarea style="{input_style}" name="env" title="{description_env}" placeholder="NAME=VALUE">{env_variables}</textarea>
             <div style="{additional_info_style}">{description_env}</div>
         </div>
         <div style="{div_style}">
@@ -80,8 +91,11 @@ def get_options_form(spawner, additional_cpu_info="", additional_memory_info="",
         images_template=images_template,
         custom_image_listener=custom_image_listener,
         optional_label=optional_label,
+        cpu_limit=cpu_limit,
         description_memory_limit=description_memory_limit,
+        mem_limit=mem_limit,
         memory_input_listener=memory_input_listener,
+        env_variables=env_variables,
         description_env=description_env,
         description_days_to_live=description_days_to_live,
         additional_cpu_info=additional_cpu_info,
@@ -95,7 +109,7 @@ def get_options_form_docker(spawner):
         "additional_memory_info": "Host has {memory_count_in_gb}GB memory".format(memory_count_in_gb=spawner.resource_information['memory_count_in_gb']),
         "additional_gpu_info": "<div>Host has {gpu_count} GPUs</div><div>{description_gpus}</div>".format(gpu_count=spawner.resource_information['gpu_count'], description_gpus=description_gpus)
     }
-    options_form = get_options_form(spawner, **additional_info)
+    options_form = get_options_form(spawner, cpu_limit=spawner.cpu_limit, mem_limit=spawner.mem_limit, env_variables=spawner.environment, **additional_info)
     
     # When GPus shall be used, change the default image to the default gpu image (if the user entered a different image, it is not changed), and show an info box
     # reminding the user of inserting a GPU-leveraging docker image
@@ -165,7 +179,13 @@ def options_from_form(spawner, formdata):
     for line in env_lines[0].splitlines():
         if line:
             key, value = line.split('=', 1)
-            env[key.strip()] = value.strip()
+
+            key = key.strip()
+            # the user is not allowed to override default variables
+            if key.upper() in default_env_variables:
+                continue
+
+            env[key] = value.strip()
     options['env'] = env
 
     options['shm_size'] = formdata.get('shm_size', [None])[0]
