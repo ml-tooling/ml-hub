@@ -156,6 +156,7 @@ class MLHubDockerSpawner(DockerSpawner):
         if self.user_options.get(utils.OPTION_IMAGE):
             self.image = self.user_options.get(utils.OPTION_IMAGE)
 
+        # TODO: deep copy of self.extra_host_config since some fields are dictionaries themselves? e.g. self.extra_host_config['storage_opt']
         extra_host_config = {}
         if self.user_options.get(utils.OPTION_CPU_LIMIT):
             # nano_cpus cannot be bigger than the number of CPUs of the machine (this method would currently not work in a cluster, as machines could be different than the machine where the runtime-manager and this code run.
@@ -170,11 +171,19 @@ class MLHubDockerSpawner(DockerSpawner):
             extra_host_config[utils.OPTION_MEM_LIMIT] = str(self.user_options.get(
                 utils.OPTION_MEM_LIMIT)) + "gb"
 
-        if self.user_options.get('is_mount_volume') == 'on':
-            # {username} and {servername} will be automatically replaced by DockerSpawner with the right values as in template_namespace
-            #volumeName = self.name_template.format(prefix=self.prefix)
-            self.highlevel_docker_client.volumes.create(name=self.object_name, labels=self.default_labels)
-            self.volumes = {self.object_name: "/workspace"}
+        # if self.user_options.get('is_mount_volume') == 'on':
+        #     # {username} and {servername} will be automatically replaced by DockerSpawner with the right values as in template_namespace
+        #     #volumeName = self.name_template.format(prefix=self.prefix)
+        #     self.highlevel_docker_client.volumes.create(name=self.object_name, labels=self.default_labels)
+        #     self.volumes = {self.object_name: "/workspace"}
+        if self.user_options.get('storage_limit'):
+            # TODO: handle the option (when --storage-opt is supported, set it, otherwise set the soft-limit environment variable which is handled by MLWorkspace)
+            if False:
+                if "storage_opt" not in self.extra_host_config:
+                    self.extra_host_config["storage_opt"] = {}
+                self.extra_host_config["storage_opt"].update({"size": self.user_options.get('storage_limit') + "G"})
+            else:
+                self.env["MAX_WORKSPACE_FOLDER_SIZE"] = self.user_options.get('storage_limit')
 
         extra_create_kwargs = {}
         # set default label 'origin' to know for sure which containers where started via the hub

@@ -45,7 +45,7 @@ class MLHubKubernetesSpawner(KubeSpawner):
         if getattr(self, "name", "") == "":
             return ''
 
-        return spawner_options.get_options_form(self)
+        return spawner_options.get_options_form(self, storage_limit=self.storage_capacity)
 
     def options_from_form(self, formdata):
         """Extract the passed form data into the self.user_options variable."""
@@ -101,6 +101,9 @@ class MLHubKubernetesSpawner(KubeSpawner):
             self.extra_labels[utils.LABEL_EXPIRATION_TIMESTAMP] =  str(expiration_timestamp)
         else:
             self.extra_labels[utils.LABEL_EXPIRATION_TIMESTAMP] = str(0)
+
+        if self.user_options.get('storage_limit'):
+            self.storage_capacity = self.user_options.get('storage_limit')
 
         #if self.user_options.get('gpus'):
         #    extra_host_config['runtime'] = "nvidia"

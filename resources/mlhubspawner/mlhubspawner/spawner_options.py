@@ -10,7 +10,7 @@ div_style = "margin-bottom: 16px"
 additional_info_style="margin-top: 4px; color: rgb(165,165,165); font-size: 12px;"
 optional_label = "<span style=\"font-size: 12px; font-weight: 400;\">(optional)</span>"
 
-def get_options_form(spawner, cpu_limit = "", mem_limit = "", env_variables = [], additional_cpu_info="", additional_memory_info="", additional_gpu_info="") -> str:
+def get_options_form(spawner, storage_limit=None, additional_cpu_info="", additional_memory_info="", additional_gpu_info="") -> str:
     """Return the spawner options screen"""
 
     # Only show spawner options for named servers (the default server should start with default values)
@@ -19,6 +19,7 @@ def get_options_form(spawner, cpu_limit = "", mem_limit = "", env_variables = []
 
     description_memory_limit = 'Memory Limit in GB.'
     description_env = 'One name=value pair per line, without quotes'
+    description_storage_limit = "The amount of storage that mounted volumes should have. In Docker-local, it will be set either as a soft limit (showing a popup to the user when used with MLWorkspace), or set as a hard limit when the Docker --storage-opt flag is supported. In Kubernetes, it is set to the KubeSpawner's config 'storage_capacity'"
     description_days_to_live = 'Number of days the container should live'
 
     default_image = getattr(spawner, "image", "mltooling/ml-workspace:latest")
@@ -40,15 +41,22 @@ def get_options_form(spawner, cpu_limit = "", mem_limit = "", env_variables = []
     images_template = """
         <select name="defined_image" class="defined-images" required autofocus>{image_options}</select>
     """.format(image_options=image_options)
+
+    env_variables = spawner.environment
     print(env_variables)
     env_variables = "\n".join(f"{key}={env_variables[key]}" for key in env_variables if key.upper() not in default_env_variables)
+    cpu_limit = spawner.cpu_limit
     if cpu_limit == None:
         cpu_limit = ""
     
+    mem_limit = spawner.mem_limit
     if mem_limit == None:
         mem_limit = ""
     else:
         mem_limit = mem_limit/1000/1000/1000
+
+    if storage_limit == None:
+        storage_limit = ""
 
     # template = super()._default_options_form()
     return """
@@ -79,6 +87,11 @@ def get_options_form(spawner, cpu_limit = "", mem_limit = "", env_variables = []
             <div style="{additional_info_style}">{description_env}</div>
         </div>
         <div style="{div_style}">
+            <label style="{label_style}" for="storage_limit" title="{description_storage_limit}">Storage Limit in GB {optional_label}</label>
+            <textarea style="{input_style}" name="storage_limit" title="{description_storage_limit}" placeholder="e.g. 1, 2, 3, ..." value={storage_limit}></textarea>
+            <div style="{additional_info_style}">{description_env}</div>
+        </div>
+        <div style="{div_style}">
             <label style="{label_style}" for="days_to_live" title="{description_days_to_live}">Days to live {optional_label}</label>
             <input style="{input_style}" name="days_to_live" title="{description_days_to_live}" placeholder="e.g. 3"></input>
         </div>
@@ -87,16 +100,25 @@ def get_options_form(spawner, cpu_limit = "", mem_limit = "", env_variables = []
         label_style=label_style,
         input_style=input_style,
         additional_info_style=additional_info_style,
+
         default_image=default_image,
         images_template=images_template,
         custom_image_listener=custom_image_listener,
+
         optional_label=optional_label,
+
         cpu_limit=cpu_limit,
+
         description_memory_limit=description_memory_limit,
         mem_limit=mem_limit,
         memory_input_listener=memory_input_listener,
+
         env_variables=env_variables,
         description_env=description_env,
+
+        description_storage_limit=description_storage_limit,
+        storage_limit=storage_limit,
+
         description_days_to_live=description_days_to_live,
         additional_cpu_info=additional_cpu_info,
         additional_memory_info=additional_memory_info,
@@ -109,7 +131,12 @@ def get_options_form_docker(spawner):
         "additional_memory_info": "Host has {memory_count_in_gb}GB memory".format(memory_count_in_gb=spawner.resource_information['memory_count_in_gb']),
         "additional_gpu_info": "<div>Host has {gpu_count} GPUs</div><div>{description_gpus}</div>".format(gpu_count=spawner.resource_information['gpu_count'], description_gpus=description_gpus)
     }
-    options_form = get_options_form(spawner, cpu_limit=spawner.cpu_limit, mem_limit=spawner.mem_limit, env_variables=spawner.environment, **additional_info)
+
+    storage_limit = None
+    if "storage_opt" in spawner.extra_host_config and "size" in spawner.extra_host_config["storage_opt"]:
+        storage_limit = spawner.extra_host_config["storage_opt"]["size"]
+
+    options_form = get_options_form(spawner, storage_limit=storage_limit, **additional_info)
     
     # When GPus shall be used, change the default image to the default gpu image (if the user entered a different image, it is not changed), and show an info box
     # reminding the user of inserting a GPU-leveraging docker image
@@ -126,16 +153,17 @@ def get_options_form_docker(spawner):
         gpu_disabled = "disabled"
 
     additional_shm_size_info = "This will override the default shm_size value. Check the <a href='https://docs.docker.com/compose/compose-file/#shm_size'>documentation</a> for more info."
+    
+    # <div style="{div_style}">
+    #     <input style="margin-right: 8px;" type="checkbox" name="is_mount_volume" checked></input>
+    #     <label style="font-weight: 400;" for="is_mount_volume">Mount named volume to /workspace?</label>
+    # </div>
     options_form_docker = \
     """
     <div style="{div_style}">
         <label style="{label_style}" for="shm_size">Shared Memory Size {optional_label}</label>
         <input style="{input_style}" name="shm_size" placeholder="default is {default_shm_size}"></input>
         <div style="{additional_info_style}">{additional_shm_size_info}</div>
-    </div>
-    <div style="{div_style}">
-        <input style="margin-right: 8px;" type="checkbox" name="is_mount_volume" checked></input>
-        <label style="font-weight: 400;" for="is_mount_volume">Mount named volume to /workspace?</label>
     </div>
     <div style="{div_style}">
         <label style="{label_style}" for="gpus" title="{description_gpus}">GPUs {optional_label}</label>
@@ -170,7 +198,8 @@ def options_from_form(spawner, formdata):
 
     options["cpu_limit"] = formdata.get('cpu_limit', [None])[0]
     options["mem_limit"] = formdata.get('mem_limit', [None])[0]
-    options["is_mount_volume"] = formdata.get('is_mount_volume', ["off"])[0]
+    options["storage_limit"] = formdata.get('storage_limit', [None])[0] 
+    # options["is_mount_volume"] = formdata.get('is_mount_volume', ["off"])[0]
     options["days_to_live"] = formdata.get('days_to_live', [None])[0]
 
     env = {}
