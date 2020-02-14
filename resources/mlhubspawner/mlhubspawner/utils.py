@@ -45,7 +45,7 @@ def init_docker_client(client_kwargs: dict, tls_config: dict) -> docker.DockerCl
     The configuration is done the same way DockerSpawner initializes the low-level API client.
 
     Returns:
-        docker.DockerClient
+        docker.DockerClient, docker.APIClient
     """
 
     kwargs = {"version": "auto"}
@@ -55,7 +55,7 @@ def init_docker_client(client_kwargs: dict, tls_config: dict) -> docker.DockerCl
     if client_kwargs:
         kwargs.update(client_kwargs)
         
-    return docker.DockerClient(**kwargs)
+    return docker.DockerClient(**kwargs), docker.APIClient(**kwargs)
 
 def get_state(spawner, state) -> dict:
     if hasattr(spawner, "saved_user_options"):

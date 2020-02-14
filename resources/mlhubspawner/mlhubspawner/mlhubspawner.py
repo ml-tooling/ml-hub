@@ -89,7 +89,7 @@ class MLHubDockerSpawner(DockerSpawner):
             docker.DockerClient
         """
         
-        return utils.init_docker_client(self.client_kwargs, self.tls_config)
+        return utils.init_docker_client(self.client_kwargs, self.tls_config)[0]
 
     @property
     def network_name(self):

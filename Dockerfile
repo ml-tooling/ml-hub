@@ -199,7 +199,7 @@ LABEL \
     "org.opencontainers.image.licenses"="Apache-2.0" \
     "org.opencontainers.image.version"=$HUB_VERSION \
     "org.opencontainers.image.vendor"="ML Tooling" \
-    "org.opencontainers.image.authors"="Benjamin Raehtlein & Lukas Masuch" \
+    "org.opencontainers.image.authors"="Benjamin Raethlein & Lukas Masuch" \
     "org.opencontainers.image.revision"=$ARG_VCS_REF \
     "org.opencontainers.image.created"=$ARG_BUILD_DATE \ 
     # Label Schema Convention (deprecated): http://label-schema.org/rc1/

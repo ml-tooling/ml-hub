@@ -6,13 +6,20 @@ by JupyterHub. For more information check out https://jupyterhub.readthedocs.io/
 Note: Logs probably don't appear in stdout, as the service is started as a subprocess by JupyterHub
 """
 
-import os
+import os, sys
 import urllib3
 import json
 import time
 import math
 from threading import Thread
 import logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('[%(levelname)1.1s %(asctime)s.%(msecs).03d %(name)s %(module)s:%(lineno)d] %(message)s') #('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 from tornado import web, ioloop
 from jupyterhub.services.auth import HubAuthenticated
@@ -27,6 +34,7 @@ prefix = os.environ.get('JUPYTERHUB_SERVICE_PREFIX', '/')
 service_url = os.getenv('JUPYTERHUB_SERVICE_URL')
 jupyterhub_api_url = os.getenv('JUPYTERHUB_API_URL')
 jupyterhub_api_token = os.getenv('JUPYTERHUB_API_TOKEN')
+max_container_size = int(os.environ.get("MAX_CONTAINER_SIZE", -1))
 
 auth_header = {"Authorization": "token " + jupyterhub_api_token}
 
@@ -37,7 +45,7 @@ http = urllib3.PoolManager()
 if execution_mode == utils.EXECUTION_MODE_LOCAL:
     docker_client_kwargs = json.loads(os.getenv("DOCKER_CLIENT_KWARGS"))
     docker_tls_kwargs = json.loads(os.getenv("DOCKER_TLS_CONFIG"))
-    docker_client = utils.init_docker_client(docker_client_kwargs, docker_tls_kwargs)
+    docker_client, docker_api_client = utils.init_docker_client(docker_client_kwargs, docker_tls_kwargs)
 elif execution_mode == utils.EXECUTION_MODE_KUBERNETES:
     # incluster config is the config given by a service account and it's role permissions
     config.load_incluster_config()
@@ -133,15 +141,15 @@ def remove_deleted_user_resources(existing_user_names: []):
         return False
 
 
-    def find_and_remove(docker_client_obj, get_labels, action_callback) -> None:
+    def find_and_act(docker_client_obj, get_labels, action_callback) -> None:
         """List all resources belonging to `docker_client_obj` which were created by MLHub.
         Then check the list of resources for resources that belong to a user who does not exist anymore 
-        and call the remove function on them.
+        and call the action function on them.
 
             Args:
                 docker_client_obj: A Python docker client object, such as docker_client.containers, docker_client.networks,... It must implement a .list() function (check https://docker-py.readthedocs.io/en/stable/containers.html)
                 get_labels (func): function to call on the docker resource to get the labels
-                remove (func): function to call on the docker resource to remove it                
+                action_callback (func): function to call on the docker resource to remove it                
         """
 
         resources = get_hub_docker_resources(docker_client_obj)
@@ -157,7 +165,7 @@ def remove_deleted_user_resources(existing_user_names: []):
             container
         )
 
-    find_and_remove(
+    find_and_act(
         docker_client.containers, 
         lambda res: res.labels, 
         container_action
@@ -171,13 +179,13 @@ def remove_deleted_user_resources(existing_user_names: []):
         
         try_to_remove(network.remove, network)
 
-    find_and_remove(
+    find_and_act(
         docker_client.networks, 
         lambda res: res.attrs["Labels"], 
         network_action
     )
 
-    find_and_remove(
+    find_and_act(
         docker_client.volumes,
         lambda res: res.attrs["Labels"],
         lambda res: try_to_remove(res.remove, res)
@@ -216,6 +224,52 @@ def remove_expired_workspaces():
                     logging.info("Delete expired container " + unified_container.name)
                     unified_container.remove()
 
+def clean_storage_exceeding_containers():
+    """Remove containers which exceeds the max container size defined by $MAX_CONTAINER_SIZE
+    """
+
+    if execution_mode == utils.EXECUTION_MODE_KUBERNETES:
+        raise UserWarning("In Kubernetes mode, cleaning storage exceeding containers is handled by the Kubernetes-native functionality of ephemeral-storage limits and not by this function.")
+
+    #hub_containers = get_hub_containers()
+    if max_container_size == -1:
+        return
+    
+    container_size_field = "SizeRw"
+    hub_containers = docker_api_client.containers(all=True, size=True, filters=origin_label_filter)
+    for container in hub_containers:
+        if container_size_field in container:
+            container_size_in_gb = container[container_size_field]/1000/1000/1000
+            container_id = container["Id"]
+            container_inspection = docker_api_client.inspect_container(container_id)
+            #environment_variables = container_inspection["Config"]["Env"]
+            labels = container_inspection["Config"]["Labels"]
+            #for environment_variable in environment_variables:
+                #if environment_variable.startswith("MAX_CONTAINER_SIZE"):
+                    #name, key = environment_variable.split("=", 1)
+            try:
+                if max_container_size < container_size_in_gb:
+                    # Remove the container and re-create it again so it is "fresh"
+                    user_name = labels[utils.LABEL_MLHUB_USER]
+                    server_name = labels[utils.LABEL_MLHUB_SERVER_NAME]
+                    url = jupyterhub_api_url + "/users/{user_name}/servers/{server_name}".format(user_name=user_name, server_name=server_name)
+                    r = http.request('DELETE', url,
+                        body = json.dumps({"remove": False}).encode('utf-8'),
+                        headers = {**auth_header}
+                    )
+
+                    if r.status == 202 or r.status == 204:
+                        logging.info("Delete storage exceeding container " + container["Names"][0])
+                        docker_api_client.remove_container(container_id, force=True)
+
+                    logging.info("Re-create deleted container so that it is \"fresh\"")
+                    r = http.request('POST', url,
+                        headers = {**auth_header}
+                    )
+
+            except docker.errors.APIError as e:
+                logging.error("Could not remove / re-create the container.", e)
+
 class CleanupUserResources(HubAuthenticated, web.RequestHandler):
 
     @web.authenticated
@@ -243,9 +297,23 @@ class CleanupExpiredContainers(HubAuthenticated, web.RequestHandler):
 
         remove_expired_workspaces()
 
+
+class CleanupStorageExceedingContainers(HubAuthenticated, web.RequestHandler):
+
+    @web.authenticated
+    def get(self):
+        current_user = self.get_current_user()
+        if current_user["admin"] is False:
+            self.set_status(401)
+            self.finish()
+            return
+
+        clean_storage_exceeding_containers()
+
 app = web.Application([
     (r"{}users".format(prefix), CleanupUserResources),
-    (r"{}expired".format(prefix), CleanupExpiredContainers)
+    (r"{}expired".format(prefix), CleanupExpiredContainers),
+    (r"{}storage-exceeded".format(prefix), CleanupStorageExceedingContainers)
 ])
 
 service_port = int(service_url.split(":")[-1])
@@ -259,6 +327,12 @@ def internal_service_caller():
             remove_deleted_user_resources(get_hub_usernames())
         except UserWarning:
             pass
+
+        try:
+            clean_storage_exceeding_containers()
+        except UserWarning:
+            pass
+
         remove_expired_workspaces()
 
 Thread(target=internal_service_caller).start()

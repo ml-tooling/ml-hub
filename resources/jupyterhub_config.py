@@ -178,7 +178,7 @@ elif ENV_EXECUTION_MODE == utils.EXECUTION_MODE_LOCAL:
     client_kwargs = {**get_or_init(c.Spawner.client_kwargs, dict)} # {**get_or_init(c.DockerSpawner.client_kwargs, dict), **get_or_init(c.MLHubDockerSpawner.client_kwargs, dict)}
     tls_config = {**get_or_init(c.Spawner.tls_config, dict)} # {**get_or_init(c.DockerSpawner.tls_config, dict), **get_or_init(c.MLHubDockerSpawner.tls_config, dict)}
 
-    docker_client = utils.init_docker_client(client_kwargs, tls_config)
+    docker_client, docker_api_client = utils.init_docker_client(client_kwargs, tls_config)
     try:
         container = docker_client.containers.list(filters={"id": socket.gethostname()})[0]
         if container.name.lower() != ENV_HUB_NAME.lower():
