@@ -7,7 +7,7 @@ default_env_variables = ["AUTHENTICATE_VIA_JUPYTER", "SHUTDOWN_INACTIVE_KERNELS"
 label_style = "width: 25%"
 input_style = "width: 75%"
 div_style = "margin-bottom: 16px"
-additional_info_style="margin-top: 4px; color: rgb(165,165,165); font-size: 12px;"
+additional_info_style="margin-top: 4px; color: rgb(165,165,165); font-size: 12px; width: 75%"
 optional_label = "<span style=\"font-size: 12px; font-weight: 400;\">(optional)</span>"
 
 def get_options_form(spawner, storage_limit=None, additional_cpu_info="", additional_memory_info="", additional_gpu_info="") -> str:
@@ -17,10 +17,10 @@ def get_options_form(spawner, storage_limit=None, additional_cpu_info="", additi
     if getattr(spawner, "name", "") == "":
         return ''
 
-    description_memory_limit = 'Memory Limit in GB.'
-    description_env = 'One name=value pair per line, without quotes'
-    description_storage_limit = "The amount of storage that mounted volumes should have. In Docker-local, it will be set either as a soft limit (showing a popup to the user when used with MLWorkspace), or set as a hard limit when the Docker --storage-opt flag is supported. In Kubernetes, it is set to the KubeSpawner's config 'storage_capacity'"
-    description_days_to_live = 'Number of days the container should live'
+    description_memory_limit = "Memory Limit in GB."
+    description_env = "One name=value pair per line, without quotes"
+    description_storage_limit = "The amount of storage that mounted volumes should have. In Docker-local, it will be set either as a soft limit (showing a popup to the user when used with MLWorkspace), or set as a hard limit when MLHub is started with $STORAGE_OPT_ENABLED=true indicating that the Docker <a href='https://docs.docker.com/engine/reference/commandline/run/#set-storage-driver-options-per-container'>--storage-opt flag is supported</a>. In Kubernetes mode, it is set to the KubeSpawner's config <a href='https://github.com/jupyterhub/kubespawner/blob/8751773916ccc6b84c998f7950dd3e07fea5ae4e/kubespawner/spawner.py#L679'>'storage_capacity'</a>"
+    description_days_to_live = "Number of days the container should live. If MLHub is started with <a href='https://github.com/ml-tooling/ml-hub#environment-variables'>$CLEANUP_INTERVAL_SECONDS greater than -1</a>, the cleanup service will remove workspaces exceeding their days to live eventually."
 
     default_image = getattr(spawner, "image", "mltooling/ml-workspace:latest")
 
@@ -43,7 +43,7 @@ def get_options_form(spawner, storage_limit=None, additional_cpu_info="", additi
     """.format(image_options=image_options)
 
     env_variables = spawner.environment
-    print(env_variables)
+
     env_variables = "\n".join(f"{key}={env_variables[key]}" for key in env_variables if key.upper() not in default_env_variables)
     cpu_limit = spawner.cpu_limit
     if cpu_limit == None:
@@ -73,12 +73,12 @@ def get_options_form(spawner, storage_limit=None, additional_cpu_info="", additi
         </div>
         <div style="{div_style}">
             <label style="{label_style}" for="cpu_limit">CPU Limit {optional_label}</label>
-            <input style="{input_style}" name="cpu_limit" placeholder="e.g. 8" value={cpu_limit}></input>
+            <input style="{input_style}" name="cpu_limit" placeholder="e.g. 8" value="{cpu_limit}"></input>
             <div style="{additional_info_style}">{additional_cpu_info}</div>
         </div>
         <div style="{div_style}">
             <label style="{label_style}" for="mem_limit" title="{description_memory_limit}">Memory Limit in GB {optional_label}</label>
-            <input style="{input_style}" name="mem_limit" id="mem-limit" title="{description_memory_limit}" placeholder="e.g. 1, 2, 15, ..." value={mem_limit} oninput="{memory_input_listener}"></input>
+            <input style="{input_style}" name="mem_limit" id="mem-limit" title="{description_memory_limit}" placeholder="e.g. 1, 2, 15, ..." value="{mem_limit}" oninput="{memory_input_listener}"></input>
             <div style="{additional_info_style}">{additional_memory_info}</div>
         </div>
         <div style="{div_style}">
@@ -88,12 +88,13 @@ def get_options_form(spawner, storage_limit=None, additional_cpu_info="", additi
         </div>
         <div style="{div_style}">
             <label style="{label_style}" for="storage_limit" title="{description_storage_limit}">Storage Limit in GB {optional_label}</label>
-            <textarea style="{input_style}" name="storage_limit" title="{description_storage_limit}" placeholder="e.g. 1, 2, 3, ..." value={storage_limit}></textarea>
-            <div style="{additional_info_style}">{description_env}</div>
+            <input style="{input_style}" name="storage_limit" title="{description_storage_limit}" placeholder="e.g. 1, 2, 3, ..." value={storage_limit}></input>
+            <div style="{additional_info_style}">{description_storage_limit}</div>
         </div>
         <div style="{div_style}">
             <label style="{label_style}" for="days_to_live" title="{description_days_to_live}">Days to live {optional_label}</label>
             <input style="{input_style}" name="days_to_live" title="{description_days_to_live}" placeholder="e.g. 3"></input>
+            <div style="{additional_info_style}">{description_days_to_live}</div>
         </div>
     """.format(
         div_style=div_style,

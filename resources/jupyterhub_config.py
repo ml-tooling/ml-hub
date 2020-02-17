@@ -145,6 +145,8 @@ service_environment = {
     ENV_NAME_HUB_NAME: ENV_HUB_NAME,
     utils.ENV_NAME_EXECUTION_MODE: ENV_EXECUTION_MODE,
     utils.ENV_NAME_CLEANUP_INTERVAL_SECONDS: os.getenv(utils.ENV_NAME_CLEANUP_INTERVAL_SECONDS),
+    # TODO: refactor
+    "MAX_CONTAINER_SIZE": os.getenv("MAX_CONTAINER_SIZE")
 }
 
 # In Kubernetes mode, load the Kubernetes Jupyterhub config that can be configured via a config.yaml.
@@ -206,7 +208,7 @@ if c.JupyterHub.authenticator_class == NATIVE_AUTHENTICATOR_CLASS:
     c.JupyterHub.template_paths.append("{}/templates/".format(os.path.dirname(nativeauthenticator.__file__)))
 
 # TODO: add env variable to readme
-if (os.getenv("IS_CLEANUP_SERVICE_ENABLED", "true") == "true"):
+if (int(os.getenv("CLEANUP_INTERVAL_SECONDS")) > -1):
     c.JupyterHub.services = [
         {
             'name': 'cleanup-service',

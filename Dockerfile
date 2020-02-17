@@ -80,7 +80,7 @@ RUN \
 # Install JupyterHub
 RUN \
    npm install -g configurable-http-proxy && \
-   python3 -m pip install --no-cache jupyterhub && \
+   python3 -m pip install --no-cache jupyterhub==1.1.0 && \
    # Cleanup
    clean-layer.sh
 
@@ -133,7 +133,7 @@ ENV HUB_VERSION=$ARG_HUB_VERSION
 COPY resources/nginx.conf /etc/nginx/nginx.conf
 COPY resources/scripts $_RESOURCES_PATH/scripts
 COPY resources/docker-entrypoint.sh $_RESOURCES_PATH/docker-entrypoint.sh
-COPY resources/logo.png /usr/local/share/jupyterhub/static/images/jupyter.png
+COPY resources/logo.png /usr/local/share/jupyterhub/static/images/jupyterhub-80.png
 COPY resources/jupyterhub_config.py $_RESOURCES_PATH/jupyterhub_config.py
 COPY resources/jupyterhub-mod/template-home.html /usr/local/share/jupyterhub/templates/home.html
 COPY resources/jupyterhub-mod/template-admin.html /usr/local/share/jupyterhub/templates/admin.html
@@ -170,7 +170,8 @@ ENV \
    HUB_NAME="mlhub" \ 
    CLEANUP_INTERVAL_SECONDS=3600 \
    DYNAMIC_WHITELIST_ENABLED="false" \
-   IS_CLEANUP_SERVICE_ENABLED="true"
+   MAX_CONTAINER_SIZE=-1 \
+   STORAGE_OPT_ENABLED="false"
 
 ### END CONFIGURATION ###
 

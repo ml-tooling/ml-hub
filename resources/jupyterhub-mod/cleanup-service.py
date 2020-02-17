@@ -34,7 +34,7 @@ prefix = os.environ.get('JUPYTERHUB_SERVICE_PREFIX', '/')
 service_url = os.getenv('JUPYTERHUB_SERVICE_URL')
 jupyterhub_api_url = os.getenv('JUPYTERHUB_API_URL')
 jupyterhub_api_token = os.getenv('JUPYTERHUB_API_TOKEN')
-max_container_size = int(os.environ.get("MAX_CONTAINER_SIZE", -1))
+max_container_size = int(os.getenv("MAX_CONTAINER_SIZE"))
 
 auth_header = {"Authorization": "token " + jupyterhub_api_token}
 

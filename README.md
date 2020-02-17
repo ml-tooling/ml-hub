@@ -146,7 +146,21 @@ Here are the additional environment variables for the hub:
         <td>
             Interval in which expired and not-used resources are deleted. Set to -1 to disable the automatic cleanup. For more information, see Section <a href="https://github.com/ml-tooling/ml-hub#cleanup-service">Cleanup Service</a>.
         </td>
-        <td>3600 <div>(currently disabled in Kubernetes)</div></td>
+        <td>3600</td>
+    </tr>
+    <tr>
+        <td>MAX_CONTAINER_SIZE</td>
+        <td>
+            The maximum size a container is allowed to grow to in Gigabytes. Set to -1 to disable it. If you add data to a container's writeable layer - basically a path where no volume is mounted - the container size grows. If not set, a container can theoretically consume all of the host's storage. In Docker-local mode, the <a href="https://github.com/ml-tooling/ml-hub#cleanup-service">Cleanup Service</a> will remove violating containers. In Kubernetes mode, the native functionality of <i>ephemeral-storage limit</i> is used.
+        </td>
+        <td>-1 (= disabled)</td>
+    </tr>
+    <tr>
+        <td>STORAGE_OPT_ENABLED</td>
+        <td>
+          Enable it to allow the spawner setting a limit to mounted volumes in Docker-local mode. In Docker-local, the <a href='https://docs.docker.com/engine/reference/commandline/run/#set-storage-driver-options-per-container'>--storage-opt flag</a> is only supported by a few hosts. This flag does not have an affect in Kubernetes mode. There, it is set to the KubeSpawner's config <a href='https://github.com/jupyterhub/kubespawner/blob/8751773916ccc6b84c998f7950dd3e07fea5ae4e/kubespawner/spawner.py#L679'>'storage_capacity'</a>".
+        </td>
+        <td>false</td>
     </tr>
 </table>
 
@@ -339,8 +353,7 @@ The service has two endpoints which can be reached under the Hub service url `/s
 
 <details>
 <summary><b>How to change the logo shown in the webapp?</b> (click to expand...)</summary>
-
-If you want to have your own logo in the corner, place it at `/usr/local/share/jupyterhub/static/images/jupyter.png` inside the hub container.
+JupyterHub has a configuration setting to specify the logo path, as you can read [in the documentation](https://jupyterhub.readthedocs.io/en/stable/api/app.html#jupyterhub.app.JupyterHub.logo_file).
 </details>
 
 <details>

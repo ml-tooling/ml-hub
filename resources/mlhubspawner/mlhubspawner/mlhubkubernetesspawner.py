@@ -103,7 +103,12 @@ class MLHubKubernetesSpawner(KubeSpawner):
             self.extra_labels[utils.LABEL_EXPIRATION_TIMESTAMP] = str(0)
 
         if self.user_options.get('storage_limit'):
-            self.storage_capacity = self.user_options.get('storage_limit')
+            self.storage_capacity = self.user_options.get('storage_limit') + "G"
+
+        max_container_size = int(os.getenv("MAX_CONTAINER_SIZE"))
+        if max_container_size != -1:
+            self.extra_resource_limits['ephemeral-storage'] = max_container_size * (1000**3)
+            self.extra_resource_guarantees['ephemeral_storage'] = "0G"
 
         #if self.user_options.get('gpus'):
         #    extra_host_config['runtime'] = "nvidia"

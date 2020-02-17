@@ -162,14 +162,17 @@ class MLHubDockerSpawner(DockerSpawner):
             # nano_cpus cannot be bigger than the number of CPUs of the machine (this method would currently not work in a cluster, as machines could be different than the machine where the runtime-manager and this code run.
             max_available_cpus = self.resource_information["cpu_count"]
             limited_cpus = min(
-                int(self.user_options.get(utils.OPTION_CPU_LIMIT)), max_available_cpus)
+                float(self.user_options.get(utils.OPTION_CPU_LIMIT)), max_available_cpus)
 
             # the nano_cpu parameter of the Docker client expects an integer, not a float
             nano_cpus = int(limited_cpus * 1e9)
             extra_host_config['nano_cpus'] = nano_cpus
+        #if self.user_options.get(utils.OPTION_MEM_LIMIT):
+            # extra_host_config[utils.OPTION_MEM_LIMIT] = str(self.user_options.get(
+            #     utils.OPTION_MEM_LIMIT)) + "gb"
         if self.user_options.get(utils.OPTION_MEM_LIMIT):
-            extra_host_config[utils.OPTION_MEM_LIMIT] = str(self.user_options.get(
-                utils.OPTION_MEM_LIMIT)) + "gb"
+            memory = str(self.user_options.get(utils.OPTION_MEM_LIMIT)) + "G"
+            self.mem_limit = memory.upper().replace("GB", "G").replace("KB", "K").replace("MB", "M").replace("TB", "T")
 
         # if self.user_options.get('is_mount_volume') == 'on':
         #     # {username} and {servername} will be automatically replaced by DockerSpawner with the right values as in template_namespace
@@ -178,11 +181,12 @@ class MLHubDockerSpawner(DockerSpawner):
         #     self.volumes = {self.object_name: "/workspace"}
         if self.user_options.get('storage_limit'):
             # TODO: handle the option (when --storage-opt is supported, set it, otherwise set the soft-limit environment variable which is handled by MLWorkspace)
-            if False:
+            if os.environ.get("STORAGE_OPT_ENABLED", "false") == "true":
                 if "storage_opt" not in self.extra_host_config:
                     self.extra_host_config["storage_opt"] = {}
                 self.extra_host_config["storage_opt"].update({"size": self.user_options.get('storage_limit') + "G"})
             else:
+                # set the environment variable to indicate a soft limit to MLWorkspace
                 self.env["MAX_WORKSPACE_FOLDER_SIZE"] = self.user_options.get('storage_limit')
 
         extra_create_kwargs = {}
