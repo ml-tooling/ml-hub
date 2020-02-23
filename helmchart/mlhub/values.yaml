@@ -5,7 +5,7 @@ mlhub:
   baseUrl: /
   secretToken: ''
   debug: false
-  env:
+  env: {}
 
 hub:
   service:
@@ -24,6 +24,7 @@ hub:
     # This is required for upgrading to work
     rollingUpdate:
   db:
+    type: ""
     # type: sqlite-pvc
     upgrade:
     pvc:
@@ -142,3 +143,4 @@ ingress:
   hosts: []
   pathSuffix: ''
   tls: []
+userConfig: ""

@@ -6,8 +6,8 @@ metadata:
     {{- include "jupyterhub.labels" . | nindent 4 }}
 data:
 {{- $values := pick .Values "custom" "hub" "singleuser" "mlhub" }}
-{{- /* trim secret values. Update here if new secrets are added! */ -}}
-{{- /* make a copy of values.auth to avoid modifying the original */ -}}
+# trim secret values. Update here if new secrets are added!
+# make a copy of values.auth to avoid modifying the original
 {{- $_ := set $values "hub" (omit $values.hub "extraEnv") -}}
 {{- $_ := set $values "mlhub" (omit $values.mlhub "env") -}}
 {{- /* passthrough subset of Chart / Release */ -}}
