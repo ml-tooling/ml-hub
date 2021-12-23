@@ -6,5 +6,5 @@ home: https://github.com/ml-tooling/ml-hub
 sources:
   - https://github.com/ml-tooling/ml-hub/helmchart
 icon: https://jupyter.org/assets/hublogo.svg
-kubeVersion: '>=1.11.0-0'
+kubeVersion: ">= 1.19.0-0"
 tillerVersion: '>=2.11.0-0'

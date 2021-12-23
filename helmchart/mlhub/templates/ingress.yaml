@@ -1,5 +1,5 @@
 {{- if .Values.ingress.enabled -}}
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: jupyterhub
@@ -18,9 +18,12 @@ spec:
       http:
         paths:
           - path: {{ $.Values.mlhub.baseUrl }}{{ $.Values.ingress.pathSuffix }}
+            pathType: Prefix
             backend:
-              serviceName: proxy-public
-              servicePort: 80
+              service:
+                name: proxy-public
+                port:
+                  number: 80
     {{- end }}
   {{- if .Values.ingress.tls }}
   tls:
